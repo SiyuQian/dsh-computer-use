@@ -4,6 +4,7 @@
 
 本目录是用户指定的 SiyuQian/dsh-computer-use 实施仓库，2026-11-08 已授权开工。
 从空仓库独立建立 DSH/macOS 插件，先实现 fixture-only 的可信语义闭环。2026-11-09 用户另行要求创建 PR：本次获准提交并推送现有开发分支，及为原空仓库建立仅含空初始化提交的 main 基线。不含合并、软件发布、日常 Profile 安装或私人应用操作授权。
+2026-11-09 17:50 Pacific/Auckland 用户另行授权：(1) 用户自行手动向 DeepSeek Harness.app 授予 macOS 辅助功能权限（Agent 不请求、不绕过 TCC）；(2) 仅在自有 AppKit fixture 上实现并实测语义动作 AXPress/set_value，键盘、pointer、真实应用仍关闭；(3) 终点为 fixture 端到端闭环（CU-015/016）；(4) 每个切片在新分支提交、推送并开 Draft PR。仍不含合并、发布、日常 Profile 安装或私人应用操作。
 工作区事实与版本证据见 [实施基线](<docs/design-docs/implementation-baseline.md>)。
 
 ## 开始前

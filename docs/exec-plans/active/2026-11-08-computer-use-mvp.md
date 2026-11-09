@@ -414,6 +414,7 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 - 2026-11-09（CU-013a2）：private固定policy/queue结果自动生成not_executed终态，scope/policy/stop/unload先seal后abort、latefirstterminal，64tombstone不复活，无runtimeACK/target/dispatch口；27runtime+5kernel+4profile新增36，全量981tests/45files。父Red修capacity混报DENIED→私有typedfailure/CONTROLBUSY；独立设计静态指出policytargetinvalid过度声明，父Red限revalidate后Green。代码review7reads/115tests+tsc0无新增finding/noProbe；AXexit3/NOT_RUN，不接ledger/native/evidence。
 - 2026-11-09（CU-002c）：固定process.execPath/argv/cwd的8step开发验证器，strictVitest分母/限定源码前后digest含untracked+HEAD/dirty、固定NO_GO，失败后剩余not_run，native只显式opt-in/固定缺权限exit3。26report+11snapshot+5copiedrunner新增42tests；父实际runner1023tests/48files、8steps0、133sourcefiles/digestsame/dirtytrue，nativeNOT_RUN整体3。独立code7reads/42tests+tsc0无finding/noProbe；不是release/完整依赖/签名/MVP。恢复入口见 [交接](<../current-handoff.md>)。
 - 2026-11-09（PR授权）：用户请求创建 PR，获准提交/推送现有foundation开发分支；远端仍空，main仅以既有空root作PR基线。创建Draft供审查，不自动合并、发布或安装，不把PR当MVP完成。历史untracked/未push记录保留其运行时间语境，当前Git/远端状态需实时核对。
+- 2026-11-09 17:50（新授权）：用户授权仅fixture语义动作AXPress/set_value的实现与native实测、终点CU-015/016 fixture闭环、每切片新分支commit/push/Draft PR；TCC由用户手动授予DeepSeek Harness.app。当时实跑test:native-observation仍exit3/NOT_RUN，verify-foundation 1023tests/48files 8steps0。键盘/pointer/真实应用/安装/发布/合并仍未授权。
 - 下一步：CU-006c/CU-007b2b真实AX成功仍缺权限，不以fake identity替代AX验收。可拆host-only来源票与inert控制复检或完成开发基线/验收交接，但不提供native executor/真实consent或dispatch许可；CU-008b2/CU-009b/CU-010b2b2/c/CU-011b/CU-013b/CU-014b/CU-024b native/live/磁盘/分发gate保留。real-app、model与Web UI未运行。
 
 ## Decision log
