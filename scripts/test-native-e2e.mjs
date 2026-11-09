@@ -30,7 +30,8 @@ try {
     const ledger = join(scratch, 'ledger'); await mkdir(ledger, { mode: 0o700 }); await chmod(ledger, 0o700);
     const namespaceParent = join(scratch, 'ns'); await mkdir(namespaceParent, { mode: 0o700 });
     controller = await NativeController.start(root, { testParent: namespaceParent });
-    fixture = new FixtureSession(ctx.subprocess, root, { visible: false });
+    // Production default is showFixture=true (--host-visible); exercise that exact path. Hidden ordered-out windows may not appear in AXWindows.
+    fixture = new FixtureSession(ctx.subprocess, root, { visible: true });
     const session = ctx.sessions.prepare(SessionId('session_native_e2e')); ctx.sessions.enter(session); ctx.sessions.announce(session);
     const agent = { id: session.id, session, ctx };
     const host = { agents: { get: () => agent, turnBoundaryOf: () => ({ openTurnStartSeq: SessionSeq(1), lastTurn: 1 }) }, sessions: ctx.sessions,
