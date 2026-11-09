@@ -14,7 +14,7 @@ describe('CU-002: bundle entry and package smoke', () => {
   it('loads the built entry and does not package node_modules, private inspection files, or source-only entry points', () => {
     const result = spawnSync(process.execPath, [resolve('scripts/check-package.mjs')], { encoding: 'utf8' });
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('diagnostic-only bundle verified');
+    expect(result.stdout).toContain('default registers cu_status only; fixture tools require explicit fixtureControl config');
   });
 
   it('uses an exact host engine baseline and remains non-publishable by default', async () => {

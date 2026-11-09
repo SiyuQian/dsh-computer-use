@@ -51,7 +51,7 @@ try {
     }, { signal: abort.signal, timeoutMs: 2000 }); // Real timer must not race the faked mono clock under load.
     stdout.destroy(); control.destroy();
   } else {
-    await probeNativeHealth({ spawn() { spawns += 1; throw new Error('controlled provider refusal'); } }, root, { signal: abort.signal, timeoutMs: mode === 'short_read' ? 5000 : 50 });
+    await probeNativeHealth({ spawn() { spawns += 1; throw new Error('controlled provider refusal'); } }, root, { signal: abort.signal, timeoutMs: mode === 'short_read' ? 5000 : 2000 }); // deadline mode uses the fake mono clock; real timer must not win under load.
   }
 } catch (failure) { error = String(failure); }
 finally { prototype.read = originalRead; prototype.stat = originalStat; }
