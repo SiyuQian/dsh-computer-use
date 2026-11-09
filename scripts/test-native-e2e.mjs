@@ -30,7 +30,8 @@ try {
     const ledger = join(scratch, 'ledger'); await mkdir(ledger, { mode: 0o700 }); await chmod(ledger, 0o700);
     const namespaceParent = join(scratch, 'ns'); await mkdir(namespaceParent, { mode: 0o700 });
     controller = await NativeController.start(root, { testParent: namespaceParent });
-    fixture = new FixtureSession(ctx.subprocess, root, { visible: false });
+    // Production default is showFixture=true (--host-visible); exercise that exact path. Hidden ordered-out windows may not appear in AXWindows.
+    fixture = new FixtureSession(ctx.subprocess, root, { visible: true });
     const session = ctx.sessions.prepare(SessionId('session_native_e2e')); ctx.sessions.enter(session); ctx.sessions.announce(session);
     const agent = { id: session.id, session, ctx };
     const host = { agents: { get: () => agent, turnBoundaryOf: () => ({ openTurnStartSeq: SessionSeq(1), lastTurn: 1 }) }, sessions: ctx.sessions,
@@ -50,7 +51,7 @@ try {
     const first = await service.observe(exec, {});
     assert.equal(byName(first, 'Simulated password')?.secure, true);
     const set = await service.act(exec, { observationId: first.observationId, action: { kind: 'set_value', targetHandle: byName(first, 'Fixture text').handle, value: 'PUBLIC_E2E' } });
-    assert.equal(set.receipt.execution, 'completed'); assert.equal(set.readback, 'match');
+    assert.equal(set.receipt.execution, 'completed', JSON.stringify(set.receipt)); assert.equal(set.readback, 'match');
     const press = await service.act(exec, { observationId: first.observationId, action: { kind: 'press', targetHandle: byName(first, 'Submit test value').handle } });
     assert.equal(press.receipt.execution, 'completed');
     let current = await state();
