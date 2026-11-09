@@ -12,10 +12,11 @@ private func revalidationMetadata(_ element: AXUIElement) -> FixtureElementMetad
     var rawIdentifier: CFTypeRef?
     let identifierResult = AXUIElementCopyAttributeValue(element, kAXIdentifierAttribute as CFString, &rawIdentifier)
     let identifier: String
-    if identifierResult == .attributeUnsupported { identifier = "" }
+    // Unlabeled AppKit controls report noValue or attributeUnsupported: no identifier, not an error.
+    if identifierResult == .attributeUnsupported || identifierResult == .noValue { identifier = "" }
     else if identifierResult == .success, let text = rawIdentifier as? String { identifier = text }
     else { return nil }
-    let subrole = revalidationAttribute(element, kAXSubroleAttribute) as? String
+    let subrole = fixtureSubrole(element)
     let enabled = revalidationAttribute(element, kAXEnabledAttribute) as? Bool ?? false
     let secure = subrole == kAXSecureTextFieldSubrole || identifier == "fixture.secure" ||
         (role == kAXTextFieldRole && !isPublicFixtureText(role: role, subrole: subrole, identifier: identifier))

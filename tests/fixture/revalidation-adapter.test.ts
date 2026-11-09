@@ -23,7 +23,7 @@ it.each([
   ['zero_children_grow', 'CAPABILITY_UNAVAILABLE'], ['short_children', 'CAPABILITY_UNAVAILABLE'],
   ['children_error', 'CAPABILITY_UNAVAILABLE'], ['detached', 'TARGET_CHANGED'], ['clean', 'exact'],
   ['window_identifier_error', 'CAPABILITY_UNAVAILABLE'], ['window_count_grow', 'CAPABILITY_UNAVAILABLE'],
-  ['window_detached_after_scan', 'TARGET_CHANGED'],
+  ['window_detached_after_scan', 'TARGET_CHANGED'], ['clean_unsupported_subrole', 'exact'], ['clean_novalue_identifier', 'exact'], ['clean_subrole_error', 'CAPABILITY_UNAVAILABLE'],
 ])('keeps the real AX adapter closed for %s using isolated API-boundary stubs without querying UI', (fault, expected) => {
   const result = spawnSync(binary, [fault], { encoding: 'utf8', timeout: 2000 });
   expect(result.status, result.stderr || result.error?.message).toBe(0);

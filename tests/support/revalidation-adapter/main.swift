@@ -45,8 +45,14 @@ func AXUIElementCopyAttributeValue(_ element: AXUIElement, _ name: CFString, _ o
     switch name as String {
     case kAXValueAttribute: valueReads += 1; return .failure
     case kAXRoleAttribute: output.pointee = (same(element, windowNode) ? "AXWindow" : "AXTextField") as CFString
-    case kAXSubroleAttribute: output.pointee = "" as CFString
+    case kAXSubroleAttribute:
+        // Real macOS NSTextField/NSButton report attributeUnsupported for AXSubrole (observed 2026-11-09).
+        if mode.hasSuffix("_unsupported_subrole") { return .attributeUnsupported }
+        if mode.hasSuffix("_subrole_error") { return .cannotComplete }
+        output.pointee = "" as CFString
     case kAXIdentifierAttribute:
+        // Real AppKit unlabeled controls (window buttons, static text) report noValue (observed 2026-11-09).
+        if mode.hasSuffix("_novalue_identifier") && !same(element, windowNode) && !same(element, selectedNode) { return .noValue }
         if same(element, otherWindow), mode == "window_identifier_error" { return .cannotComplete }
         if same(element, unrelatedNode), mode == "identifier_error" { return .cannotComplete }
         if same(element, unrelatedNode), mode == "identifier_wrong_type" { output.pointee = true as CFBoolean; return .success }
