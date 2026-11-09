@@ -69,11 +69,13 @@ export type FixtureRevalidateResponse = z.infer<typeof fixtureRevalidateResponse
 export function parseFixtureRevalidateResponse(value: unknown): FixtureRevalidateResponse {
   return parseContract(fixtureRevalidateResponseSchema, value);
 }
+const loneSurrogate = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 /** Single owned-fixture semantic action. Value is public test data, bounded, and never echoed back. */
 export const fixtureActRequestSchema = z.strictObject({
   protocolVersion: z.literal(1), requestId: opaqueId, launchId: opaqueId,
   command: z.literal('act_fixture'), target: fixtureTargetSchema, element: fixtureElementSchema,
-  value: z.string().max(1024).optional(),
+  // Lone surrogates have no Foundation encoding; reject before spawn so they cannot surface as an unknown effect.
+  value: z.string().max(1024).refine((value) => !loneSurrogate.test(value)).optional(),
 }).refine((request) => (request.element.operation === 'press') === (request.value === undefined))
   .refine((request) => (request.element.operation === 'set_value') === (request.element.identifier === 'fixture.text'));
 export const fixtureActResponseSchema = z.discriminatedUnion('status', [

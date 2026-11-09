@@ -23,6 +23,19 @@ describe('CU-012a: fixture-only semantic action transport', () => {
     expect(JSON.stringify(result)).not.toContain('PUBLIC_TEST');
   });
 
+  it.each(['https://example.test/a/b', 'path/to\\x', '</script>'])('delivers a set_value containing "/" (%s) to the Swift boundary without a canonical-encoding refusal', async (value) => {
+    // A non-fixture PID makes the helper refuse before any AX access. Reaching that refusal proves the frame was accepted.
+    const result = await client.actFixtureElement(await runtime(), root, target, text, value, { signal: new AbortController().signal });
+    expect(result).toMatchObject({ status: 'error', code: 'TARGET_CHANGED' });
+  });
+
+  it('rejects a lone UTF-16 surrogate before spawning instead of reporting an unknown effect', async () => {
+    let spawns = 0;
+    await expect(client.actFixtureElement({ spawn() { spawns += 1; throw new Error('must not spawn'); } }, root, target, text, 'a\uD800b',
+      { signal: new AbortController().signal })).rejects.toThrow('INVALID_REQUEST');
+    expect(spawns).toBe(0);
+  });
+
   it.each([
     [text, undefined], [submit, 'PUBLIC_TEST'], [{ ...text, identifier: 'fixture.secure' }, 'x'],
     [{ ...submit, identifier: 'arbitrary.selector' }, undefined], [{ ...submit, operation: 'script' }, undefined],

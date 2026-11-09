@@ -43,6 +43,8 @@ export class NativeController {
   private constructor(child: ChildProcessWithoutNullStreams, lines: Interface) {
     this.#child = child; this.#lines = lines;
     lines.on('line', (line) => this.#receive(line));
+    // A write racing controller death fails with EPIPE. Contain it as a revocation instead of an uncaught host error.
+    child.stdin.on('error', () => this.#abortLive());
     child.once('exit', () => { this.#closed = true; this.#abortLive(); for (const waiter of this.#waiters.splice(0)) waiter('drained'); });
   }
 
@@ -52,6 +54,7 @@ export class NativeController {
     const argv = options.testParent === undefined ? ['--serve'] : ['--serve', '--test-parent', options.testParent];
     const child = spawn(await verifyController(repositoryRoot), argv, { stdio: ['pipe', 'pipe', 'pipe'] });
     child.stderr.resume();
+    child.stdin.on('error', () => {});
     const lines = createInterface({ input: child.stdout });
     const first = await new Promise<string>((done, reject) => {
       const timer = setTimeout(() => reject(failure('CONTROL_UNAVAILABLE')), 3000);

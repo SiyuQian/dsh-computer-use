@@ -15,9 +15,12 @@ function stopped(): Error { return new Error('CONTROL_STOPPED: Computer use was 
 export class ControlGate {
   #controller: Promise<GateController> | undefined;
   #stopped = false;
+  /** Last controller that finished starting; read synchronously for status. */
+  #live: GateController | undefined;
   constructor(private readonly start: () => Promise<GateController>) {}
 
-  get stopped(): boolean { return this.#stopped; }
+  /** True after any explicit stop, including an independent CUController --stop that revoked the live controller. */
+  get stopped(): boolean { return this.#stopped || this.#live?.revoked === true; }
 
   async begin(): Promise<{ signal: AbortSignal; end(): Promise<void> }> {
     if (this.#stopped) throw stopped();
@@ -47,7 +50,8 @@ export class ControlGate {
       if (existing?.revoked) { this.#stopped = true; throw stopped(); }
       this.#controller = undefined;
     }
-    this.#controller = this.start().catch((error) => { this.#controller = undefined; throw error; });
+    const started = this.start().then((controller) => { this.#live = controller; return controller; });
+    this.#controller = started.catch((error) => { this.#controller = undefined; throw error; });
     return this.#controller;
   }
 }

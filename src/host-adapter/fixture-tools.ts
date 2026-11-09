@@ -9,7 +9,7 @@ import { mkdtemp, rm, chmod, realpath } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { FixtureComputerUse, type ApprovalSummary } from '../service/fixture-computer-use.js';
+import { FixtureComputerUse, fixtureApprovalTimeoutMs, type ApprovalSummary } from '../service/fixture-computer-use.js';
 import { observeFixtureSnapshot } from '../backend/macos/observe.js';
 import { actFixtureElement } from '../backend/macos/act.js';
 import { NativeController } from '../backend/macos/controller.js';
@@ -28,6 +28,8 @@ const looseObject = { type: 'object' } as const;
 /** Returns a host-side control-state reader for cu_status. */
 export function registerFixtureTools(ctx: Context, repositoryRoot: string, options: { visible: boolean }): () => 'ready' | 'stopped' | 'disabled' {
   let state: { service: FixtureComputerUse; fixture: FixtureSession; ledger: string } | undefined;
+  /** Single-flight first initialization: concurrent first calls must share one runtime, fixture and ledger. */
+  let starting: Promise<NonNullable<typeof state>> | undefined;
   const gate = new ControlGate(() => NativeController.start(repositoryRoot));
   let disposed = false;
 
@@ -43,12 +45,16 @@ export function registerFixtureTools(ctx: Context, repositoryRoot: string, optio
     if ((approval.overrideOf(agent.session) ?? approval.config.policy ?? 'ask') === 'never') return 'unavailable' as const;
     const outcome = await approval.request({ agent, toolName: 'cu_act', callId: exec.callId,
       reason: `Computer use on the owned test fixture: ${summary.operation} ${summary.identifier} (${summary.windowKey} window); input length ${summary.inputLength}; risk ${summary.riskReason}. Input text is omitted.`,
-      signal: AbortSignal.any([exec.signal, AbortSignal.timeout(60_000)]) });
+      signal: AbortSignal.any([exec.signal, AbortSignal.timeout(fixtureApprovalTimeoutMs)]) });
     return outcome === 'allowed-once' || outcome === 'rejected' || outcome === 'cancelled' ? outcome : 'unavailable' as const;
   };
-  const ensure = async () => {
-    if (disposed) throw new Error('HOST_CONTEXT_UNAVAILABLE: Computer use is disabled.');
-    if (state) return state;
+  const ensure = () => {
+    if (disposed) return Promise.reject(new Error('HOST_CONTEXT_UNAVAILABLE: Computer use is disabled.'));
+    if (state) return Promise.resolve(state);
+    starting ??= initialize().finally(() => { starting = undefined; });
+    return starting;
+  };
+  const initialize = async () => {
     const current = host();
     const ledger = await realpath(await mkdtemp(join(tmpdir(), 'cu-ledger-'))); await chmod(ledger, 0o700);
     const fixture = new FixtureSession(current.subprocess, repositoryRoot, options);
@@ -59,8 +65,10 @@ export function registerFixtureTools(ctx: Context, repositoryRoot: string, optio
       beginControl: () => gate.begin(),
       requestApproval,
     }, { ledgerDirectory: ledger });
-    state = { service, fixture, ledger };
-    return state;
+    const created = { service, fixture, ledger };
+    if (disposed) { service.dispose(); await rm(ledger, { recursive: true }).catch(() => {}); throw new Error('HOST_CONTEXT_UNAVAILABLE: Computer use is disabled.'); }
+    state = created;
+    return created;
   };
 
   const observe: ToolDefinition = {

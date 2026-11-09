@@ -427,6 +427,7 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 - 2026-11-09（独立review修复）：P1 cu_stop在controller未启动/被撤销后死亡时不粘滞→host侧ControlGate粘滞；P1 read grant过期后缓存永久失效→过期重签；P2 跨scope取grant、ledger目录TMPDIR泄漏、controller请求无超时、CUController无一致性gate、5ms忙轮询。新增9测试（Red→Green），全量3次1077/1077。
 - 2026-11-09 18:50（TCC已授予）：三条native lane连续3次exit0；修复真实AX两处fail-closed误判（AXSubrole attributeUnsupported、AXIdentifier noValue）与隐藏窗口不可见。全量1086/1086×2。
 - 2026-11-09 19:21（交接刷新）：main `c54de51` 上verify-foundation --native-observation runId a7efdf9f… 8steps0、1086tests/54files、clean，native-action/e2e各exit0。重写 [当前交接](<../current-handoff.md>)，修正本卡CU-006/015状态行。仅文档。
+- 2026-11-09 19:50（review必修6项，分支fix-review-must-fix-bugs）：各项Red→Green。#1 set_value含"/"被Swift规范重编码（`\/`）拒绝却报EXECUTION_UNKNOWN→帧按Foundation编码，孤立代理项spawn前拒绝；#2 ledger 64动作后永久LEDGER_CAPACITY→`hasCapacityFromHost`预留3事件，满/poisoned轮换到新0700子journal（不裁剪tombstone），开启失败返回not_executed；#3 审批60s>lease 30s致裸LEASE_EXPIRED→lease 90s覆盖审批，过期返回APPROVAL_INVALIDATED；#4 首次并发ensure双建fixture/ledger→single-flight；#5 独立CUController --stop后cu_status仍ready→gate读live controller revoked；#6 controller stdin EPIPE未捕获→错误转abort。新增14测试；tsc/build/invariants 0，全量1100/1101，唯一失败helper-artifact `setuid`在干净main同样失败（本机chmod 4755被静默去除setuid位，环境性，未改）。native-action/e2e exit0。低优先级7–11项未修。
 - 下一步：建议CU-025最小子集（临时Profile安装+模型跑fixture闭环），需用户另行授权临时Profile安装；否则CU-016b Web GUI停止/状态。真实应用、键盘、pointer、日常Profile、发布仍未授权。
 
 ## Decision log

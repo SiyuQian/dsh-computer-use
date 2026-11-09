@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import { z } from 'zod';
 import type { HostContext } from '../host-adapter/context.js';
 import { HostScopeRegistry, snapshotHostCall, type HostCall, type HostServices, type ScopeLifecycle } from '../host-adapter/scope-registry.js';
@@ -31,6 +33,9 @@ export interface FixtureComputerUseOptions { ledgerDirectory: string; maxScopes?
 
 const observeRequestSchema = z.strictObject({ window: z.enum(['primary', 'secondary']).default('primary') });
 const actRequestSchema = z.strictObject({ observationId: opaqueId, action: actionSchema });
+/** Host approval prompt bound. The single-action lease must outlive it, plus slack for lock and dispatch. */
+export const fixtureApprovalTimeoutMs = 60_000;
+const leaseTtlMs = fixtureApprovalTimeoutMs + 30_000;
 const lowRiskPress = new Set(['fixture.submit', 'fixture.replace', 'fixture.reorder', 'fixture.delayed', 'fixture.reset']);
 
 
@@ -47,6 +52,7 @@ export class FixtureComputerUse implements ScopeLifecycle {
   readonly #scopes: HostScopeRegistry;
   readonly #grants = new Map<string, { grantId: string; target: FixtureTarget }>();
   #ledger: Promise<DurableActionLedger> | undefined;
+  #ledgerGeneration = 0;
   #disposed = false;
 
   constructor(host: HostServices, private readonly backends: FixtureComputerUseBackends, private readonly options: FixtureComputerUseOptions) {
@@ -108,7 +114,7 @@ export class FixtureComputerUse implements ScopeLifecycle {
     const identifier = candidate.element.identifier;
     const impact = identifier === 'fixture.save' ? 'unknown' : 'ordinary';
     const lease = this.#policy.issueFromHost(context, {
-      target: candidate.target, mode: 'background', ttlMs: 30_000, idleTimeoutMs: 30_000, maxActions: 1,
+      target: candidate.target, mode: 'background', ttlMs: leaseTtlMs, idleTimeoutMs: leaseTtlMs, maxActions: 1,
       allowedOperations: [request.action.kind],
       targets: [{ handle: request.action.targetHandle, identifier, role: request.action.kind === 'press' ? 'button' : 'text-field',
         enabled: true, secure: false, impact }],
@@ -116,7 +122,8 @@ export class FixtureComputerUse implements ScopeLifecycle {
     try {
       const decision = this.#policy.evaluate(context, { leaseId: lease.taskLeaseId, target: candidate.target, action: request.action, approvalMode: 'request' });
       if (decision.decision === 'DENY') return notExecuted(decision.code === 'TARGET_CHANGED' ? 'TARGET_CHANGED' : 'CONTROL_DENIED', 'authorize');
-      if (decision.decision === 'REQUIRE_APPROVAL') {
+      const needsApproval = decision.decision === 'REQUIRE_APPROVAL';
+      if (needsApproval) {
         const outcome = await this.backends.requestApproval(call, { operation: request.action.kind, identifier,
           inputLength: request.action.kind === 'set_value' ? request.action.value.length : 0, windowKey: candidate.target.windowKey, riskReason: decision.reason });
         if (outcome !== 'allowed-once') return notExecuted(outcome === 'unavailable' ? 'APPROVAL_UNAVAILABLE' : outcome === 'cancelled' ? 'CANCELLED' : 'APPROVAL_REQUIRED', 'approve');
@@ -124,7 +131,9 @@ export class FixtureComputerUse implements ScopeLifecycle {
         return notExecuted('CONTROL_DENIED', 'authorize');
       }
       this.#scopes.bind(call);
-      this.#policy.chargeAttemptFromHost(context, lease.taskLeaseId);
+      // The lease can end while the user decides (expiry, revocation, policy change). That approval is no longer usable.
+      try { this.#policy.chargeAttemptFromHost(context, lease.taskLeaseId); }
+      catch { return notExecuted(needsApproval ? 'APPROVAL_INVALIDATED' : 'CONTROL_DENIED', needsApproval ? 'approve' : 'authorize', 'observe_first'); }
 
       // 3. Per-user controller slot (single native mutation at a time, independent stop).
       let slot;
@@ -136,11 +145,18 @@ export class FixtureComputerUse implements ScopeLifecycle {
         if (signal.aborted || this.#disposed) return notExecuted('CANCELLED', 'lock');
         this.#scopes.bind(call);
         // 4. Durable dispatch_pending before handoff. Ledger failure prevents dispatch.
-        const ledger = await this.#ledgerFor();
         const proposal = { taskLeaseId: lease.taskLeaseId, observationId: request.observationId, target: candidate.target, action: request.action,
           mode: 'background' as const, policyVersion: lease.policyVersion, revocationVersion: lease.revocationVersion, materialContext: actionId.replace(/-/g, '_') };
-        const prepared = await ledger.prepareFromHost(context, proposal);
-        await ledger.beginDispatchFromHost(context, prepared.actionId, proposal);
+        let ledger: DurableActionLedger; let prepared: { actionId: string };
+        try {
+          ledger = await this.#ledgerFor();
+          prepared = await ledger.prepareFromHost(context, proposal);
+          await ledger.beginDispatchFromHost(context, prepared.actionId, proposal);
+        } catch {
+          // Nothing was handed to the helper. A prepared-only journal record recovers as replay_rejected, never as dispatched.
+          if (signal.aborted || context.signal.aborted) return notExecuted('CANCELLED', 'lock');
+          return notExecuted('CAPABILITY_UNAVAILABLE', 'lock');
+        }
         if (signal.aborted) {
           await ledger.finishFromHost(context, prepared.actionId, { execution: 'cancelled', effect: 'unknown', taskOutcome: 'not_evaluated' }).catch(() => {});
           return { receipt: { actionId, execution: 'cancelled', target: 'unknown', effect: 'unknown', taskOutcome: 'not_evaluated', evidence: [], error: { code: 'CANCELLED', phase: 'cancel', retry: 'never' } }, readback: 'none' };
@@ -183,9 +199,20 @@ export class FixtureComputerUse implements ScopeLifecycle {
   }
 
   #grantKey(context: HostContext, window: string): string { return JSON.stringify([context.owner.agentId, context.owner.sessionId, context.workspace, window]); }
-  #ledgerFor(): Promise<DurableActionLedger> {
-    this.#ledger ??= DurableActionLedger.create({ directory: this.options.ledgerDirectory });
-    return this.#ledger;
+  /**
+   * Current journal, rotated when full or poisoned. A journal is never pruned or reopened: each one lives in a fresh
+   * 0700 subdirectory and keeps its terminal tombstones until plugin disposal removes the parent directory.
+   */
+  async #ledgerFor(): Promise<DurableActionLedger> {
+    const current = this.#ledger ? await this.#ledger.catch(() => undefined) : undefined;
+    if (current?.hasCapacityFromHost()) return current;
+    if (this.#disposed) throw new Error('LEDGER_UNAVAILABLE: The fixture runtime is disposed.');
+    void current?.close().catch(() => {});
+    const directory = join(this.options.ledgerDirectory, `journal_${this.#ledgerGeneration += 1}`);
+    const next = mkdir(directory, { mode: 0o700 }).then(() => DurableActionLedger.create({ directory }));
+    this.#ledger = next;
+    next.catch(() => { if (this.#ledger === next) this.#ledger = undefined; });
+    return next;
   }
 }
 

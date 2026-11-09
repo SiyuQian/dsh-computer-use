@@ -89,4 +89,26 @@ describe('CU-010b2b2: per-user native controller gate and independent stop', () 
       expect(performance.now() - returned).toBeLessThan(500);
     } finally { await controller.close(); }
   });
+
+  it('review #6: a write to a controller that just died is contained, not an uncaught EPIPE', async () => {
+    const path = await parent('epipe');
+    const controller = await NativeController.start(resolve('.'), { testParent: path });
+    const pid = Number(spawnSync('pgrep', ['-f', `CUController --serve --test-parent ${path}`], { encoding: 'utf8' }).stdout.trim().split('\n')[0]);
+    expect(pid).toBeGreaterThan(0);
+    const uncaught: unknown[] = []; const record = (error: unknown) => { uncaught.push(error); };
+    const before = process.listeners('uncaughtException');
+    process.removeAllListeners('uncaughtException'); process.on('uncaughtException', record);
+    try {
+      process.kill(pid, 'SIGKILL');
+      spawnSync('sleep', ['0.1']); // Block the event loop: the child is dead but its exit event has not been delivered.
+      for (let index = 0; index < 5; index += 1) controller.revokeFromHost();
+      await expect(controller.begin()).rejects.toThrow('CONTROL_STOPPED');
+      await new Promise((done) => setTimeout(done, 200));
+      expect(uncaught).toEqual([]);
+      expect(controller.signal.aborted).toBe(true);
+    } finally {
+      process.off('uncaughtException', record); for (const listener of before) process.on('uncaughtException', listener);
+      await controller.close();
+    }
+  });
 });
