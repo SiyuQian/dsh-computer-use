@@ -13,7 +13,7 @@ Last reviewed: 2026-11-09（Pacific/Auckland）。按已运行证据描述，不
 | 开发包 | build/entry smoke verified | [package tests](<../tests/unit/package.test.ts>) | 不是实际 pack 安装/签名/发布 |
 | 固定开发验证 | 8步实际退出码/严格test分母、untracked源码前后指纹/HEAD/dirty、NO_GO摘要已实跑 | [验证器](<design-docs/foundation-verification.md>) | 默认无native；指纹非执行闭包/原子snapshot/签名，绿灯不是MVP/release |
 | 本地helper一致性 | source/recipe/manifest/binary/Mach-O与bounded FD读取已验 | [产物gate](<design-docs/helper-artifacts.md>) | 非publisher签名/原子exec/同UID隔离，不涵盖fixture/stop分发，CU-024b未完成 |
-| fixture 观察 | reader/投影部分实现；拒绝路径verified | [观察设计](<design-docs/fixture-observation.md>) | TCC缺失，native成功路径NOT_RUN，CU-006未完成 |
+| fixture 观察 | reader/投影与真实AX观察成功verified（TCC用户手动授予） | [观察设计](<design-docs/fixture-observation.md>) | 仅自有fixture；CU-006父卡验收未关闭 |
 | 观察生命周期/单次intent | host有界观察成员、private witness与readgrant派生HMACintent/继承TTL/事件清理已验 | [生命周期](<design-docs/observation-lifecycle.md>) | 只是read candidate，不接controlruntime/consent/native或输入，不执行写入 |
 | fixture只读目标重验 | witness/纯策略/API边界负测与真实helper拒绝已验 | [重验设计](<design-docs/fixture-revalidation.md>) | private handle/授权service已host单元验；AX成功lane exit3/NOT_RUN、rebind未实现，CU-007b2b仍依赖006c |
 | fixture读授权 | 纯host默认拒绝内核及service单元verified | [授权设计](<design-docs/read-authorization.md>) | 内部事件适配另有验证，未接用户consent/配置UI/生产入口/native成功 |
@@ -25,7 +25,7 @@ Last reviewed: 2026-11-09（Pacific/Auckland）。按已运行证据描述，不
 | 独立停止原语 | 临时namespace真实第三进程stop-only验证 | [停止设计](<design-docs/independent-stop.md>) | 只有inert drain，不是用户入口/native排空/停止延迟验收 |
 | host动作账本 | 签名短期ID/冲突、fsync pending、真实kill只读恢复verified | [账本设计](<design-docs/action-ledger.md>) | 不接native/批准/唯一broker，不是业务exactly-once，CU-011未完成 |
 | 固定namespace/发现CLI | 固定路径策略、safe publication、stop-only本地构建verified | [路径与发现](<design-docs/control-namespace.md>) | 仅owned-parent正向、CLI help/拒绝，无生产stop调用/安装验收 |
-| 生产幂等/用户停止 | 未完成 | 不对模型开放 native | CU-010b2b2/c、CU-011b/016 |
+| 生产幂等/用户停止 | fixture路径：per-user controller、cu_stop/独立`CUController --stop`<500ms verified | [CU-016a](<exec-plans/active/2026-11-08-computer-use-mvp.md>) | 无Web GUI停止按钮；生产broker组合CU-010c/011b未完成 |
 | AppKit fixture | 构建 + hidden self-test verified | [fixture tests](<../tests/fixture/fixture.test.ts>) | 未显示 UI，无外部 AX/input/TCC 验收 |
 | native transport | health与fixture读取拒绝verified | [transport tests](<../tests/transport/>) | 无成功UI读取验收，不是输入安全证明 |
 | 保守阶段回执/固定评估接线 | kernel单调事实及private固定policy→not_executed终态、scope先封存/迟到首terminal、typed拒绝已验 | [回执设计](<design-docs/action-receipts.md>) | 不认证native/观察来源/ledger或效果，无ACK/dispatchruntime入口，CU-013b未完成 |
