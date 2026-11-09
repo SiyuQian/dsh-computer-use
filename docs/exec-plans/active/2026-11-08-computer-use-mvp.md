@@ -252,8 +252,10 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 
 ### CU-015 · 接通第一条 fixture 纵向闭环
 
-- Priority: P0。Depends: CU-013、CU-014。Status: pending。
-- [ ] 完成并留证。
+- Priority: P0。Depends: CU-013、CU-014。Status: in_progress（代码闭环完成，native lane缺AX未运行）。
+- [x] CU-015a：[FixtureComputerUse](<../../../src/service/fixture-computer-use.ts>) 组合：exact host bind→静态自有fixture read grant→观察→每动作host-static lease/风险→需要时真实DSH approval（never/unavailable拒绝）→per-user controller槽→durable ledger dispatch_pending→helper最后重验+单次dispatch→保守receipt→ledger terminal；不重试，unknown保留。12项注入seam单元（Red缺模块→Green）。
+- [x] CU-015b：插件Config `fixtureControl`（默认false，unknown key拒绝）开启后才注册cu_observe/cu_act/cu_stop；无pid/bundle/script/risk/approved参数。6项真实Cordis/ToolsService profile测试。`showFixture`默认true以`--host-visible`显示fixture（accessory、不激活）。
+- [ ] CU-015c：`pnpm run test:native-e2e` 真实helper+controller(owned临时namespace)+fixture：set_value/press由fixture state独立核验、approval不可用拒绝、replace后stale拒绝、独立stop后阻断。2026-11-09 exit3/NOT_RUN（缺AX）。
 - 范围：host 工具 → TaskLease → observe → press/set_value → readback receipt → release；注册 gated exposure 与 dispose。先验证 CU-010 的独立最小停止入口，再开放变更工具。
 - 接口/产物：一个最小可用切片；只向 fixture allowlist 暴露控制，不对任意 app 自动放开。CU-016 完成前只允许测试专用 fixture 的语义动作；键盘变更保持关闭，不宣称可与用户并行操作。
 - 验证：BUILD、UNIT、TRANSPORT、NATIVE、PROFILE；A-01、A-05、A-10（工具层并发输入）、A-12、A-19（独立最小停止）、A-20。A-10/19 的真实输入集成门槛在本卡关闭前必须有非空洞证据。
@@ -420,6 +422,7 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 - 2026-11-09 17:50（新授权）：用户授权仅fixture语义动作AXPress/set_value的实现与native实测、终点CU-015/016 fixture闭环、每切片新分支commit/push/Draft PR；TCC由用户手动授予DeepSeek Harness.app。当时实跑test:native-observation仍exit3/NOT_RUN，verify-foundation 1023tests/48files 8steps0。键盘/pointer/真实应用/安装/发布/合并仍未授权。
 - 2026-11-09（CU-012a1）：helper act_fixture语义动作与TS act客户端；health capability mutation=fixture_semantic_only。Red（缺FixtureAction.swift编译失败）→Green；全量1048tests/50files、typecheck/invariants/package exit0。test:native-action exit3/NOT_RUN（缺AX）。
 - 2026-11-09（CU-010b2b2a）：per-user CUController+TS client，单槽/busy/独立stop/sticky撤销真实进程验证；build:stop同步构建controller。全量1053tests/51files（一次负载下helper-artifact cancel_after_parse偶发失败，单跑3/3、全量2/2通过，记为flaky观察）。
+- 2026-11-09（CU-015a/b）：纵向组合服务+opt-in模型工具；修复helper-artifact探针真实50ms timer与伪mono时钟竞态的flaky（改2000ms，原断言不变），全量3次1071/1071。native-e2e exit3/NOT_RUN。
 - 下一步：CU-006c/CU-007b2b真实AX成功仍缺权限，不以fake identity替代AX验收。可拆host-only来源票与inert控制复检或完成开发基线/验收交接，但不提供native executor/真实consent或dispatch许可；CU-008b2/CU-009b/CU-010b2b2/c/CU-011b/CU-013b/CU-014b/CU-024b native/live/磁盘/分发gate保留。real-app、model与Web UI未运行。
 
 ## Decision log

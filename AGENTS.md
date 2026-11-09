@@ -46,8 +46,8 @@
 
 ## 当前命令状态
 
-真实命令见 [package.json](<package.json>)：build、build:fixture、build:helper、build:stop、typecheck、test:unit、test:profile、test:fixture、test:transport、test:native-observation、test:native-action、check:invariants、check:package、verify:foundation。
-先build、build:fixture、build:helper、build:stop再test。默认绿灯不代表AX成功；helper的health/observe_fixture/revalidate_fixture无输入能力，重验exact不可当dispatch许可；act_fixture只对自有fixture做单次press/set_value，尚未接host授权组合与模型工具。显式test:native-action缺AX同样exit3/NOT_RUN。显式native-observation缺AX权限exit3/NOT_RUN，不弹权限。GUI/native input/model均另验。
+真实命令见 [package.json](<package.json>)：build、build:fixture、build:helper、build:stop、typecheck、test:unit、test:profile、test:fixture、test:transport、test:native-observation、test:native-action、test:native-e2e、build:controller、check:invariants、check:package、verify:foundation。
+先build、build:fixture、build:helper、build:stop再test。默认绿灯不代表AX成功；helper的health/observe_fixture/revalidate_fixture无输入能力，重验exact不可当dispatch许可；act_fixture只对自有fixture做单次press/set_value；插件Config fixtureControl=true时才注册cu_observe/cu_act/cu_stop（默认只有cu_status）。test:native-e2e为真实闭环lane，缺AX exit3/NOT_RUN。显式test:native-action缺AX同样exit3/NOT_RUN。显式native-observation缺AX权限exit3/NOT_RUN，不弹权限。GUI/native input/model均另验。
 宿主签名 Node 使用官方 WASM bundler，环境与记录见 [验证记录](<docs/verification/foundation.md>)。
 固定入口`node scripts/verify-foundation.mjs`运行8步并输出NO_GO JSON/源码前后指纹；默认不进native，唯一显式`--native-observation`缺AX仍exit3。不是releasegate或依赖闭包签名，见 [验证器](<docs/design-docs/foundation-verification.md>)。
 文档结构用 installed project-docs checker。它不能替代实现测试。

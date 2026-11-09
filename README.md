@@ -2,7 +2,16 @@
 
 一个 macOS 起步、模型无关的 DeepSeek Harness 插件。目标是：语义目标优先、执行前重验、默认后台协作、受控授权、证据回执、用户随时停止。
 
-**开发状态：foundation，不是可用的桌面自动化版本。** 当前只注册 `cu_status`，明确返回 `nativeControl: false`、`privateData: false`。没有应用读取、键盘、鼠标或原生 helper 对外入口。
+**开发状态：fixture-only。** 默认只注册 `cu_status`。在插件配置中显式设置 `fixtureControl: true` 后，才额外注册 `cu_observe`、`cu_act`、`cu_stop`，且只能操作本插件自带的 AppKit 测试应用（公开测试数据）；没有键盘、鼠标坐标、真实应用或私人数据能力。
+
+### 启用（fixture）
+
+1. 先构建：`pnpm run build && pnpm run build:fixture && pnpm run build:helper && pnpm run build:stop`。
+2. 在 系统设置 → 隐私与安全性 → 辅助功能 中**手动**允许 DeepSeek Harness（插件不会请求或绕过权限）。
+3. 插件配置 `{ "fixtureControl": true }`；`showFixture` 默认 true 会显示测试窗口但不抢焦点。
+4. 模型流程：`cu_observe` → `cu_act`（press 或 set_value）→ 读取 receipt；`execution: unknown` 时不要重试，先重新观察。
+5. 停止：模型 `cu_stop`，或独立于模型运行 `dist/native/CUController --stop`（sticky，重载插件前不恢复）。
+6. 真机验收：`pnpm run test:native-e2e`（缺权限 exit 3 / NOT_RUN）。
 
 ## 已有实现
 

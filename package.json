@@ -52,6 +52,7 @@
     "test:transport": "vitest run tests/transport",
     "test:native-observation": "node scripts/test-native-observation.mjs",
     "test:native-action": "node scripts/test-native-action.mjs",
+    "test:native-e2e": "node scripts/test-native-e2e.mjs",
     "verify:foundation": "node scripts/verify-foundation.mjs"
   },
   "dependencies": {

@@ -29,4 +29,4 @@ try {
 } finally {
   await ctx.fiber.dispose();
 }
-console.log('Built diagnostic-only bundle verified. Native control is not exposed.');
+console.log('Built bundle verified: default registers cu_status only; fixture tools require explicit fixtureControl config.');

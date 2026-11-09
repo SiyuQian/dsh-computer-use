@@ -48,7 +48,7 @@ try {
       if (mode === 'deadline_after_parse') now = 10_100;
       if (mode === 'cancel_after_parse') abort.abort();
       return raw;
-    }, { signal: abort.signal, timeoutMs: 50 });
+    }, { signal: abort.signal, timeoutMs: 2000 }); // Real timer must not race the faked mono clock under load.
     stdout.destroy(); control.destroy();
   } else {
     await probeNativeHealth({ spawn() { spawns += 1; throw new Error('controlled provider refusal'); } }, root, { signal: abort.signal, timeoutMs: mode === 'short_read' ? 5000 : 50 });
