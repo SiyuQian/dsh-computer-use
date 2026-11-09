@@ -219,8 +219,10 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 
 ### CU-012 · 实现目标绑定的语义写入与受限键盘
 
-- Priority: P0。Depends: CU-007、CU-009、CU-011。Status: pending。
-- [ ] 完成并留证。
+- Priority: P0。Depends: CU-007、CU-009、CU-011。Status: in_progress（2026-11-09用户授权fixture语义动作）。
+- [x] CU-012a1：helper封闭`act_fixture`（仅自有fixture、press/set_value、canonical JSON、值≤1024且不回显）；同一exact重验元素、dispatch前最后identity/元素复检、单次AXPress/AXValue、无重试/键盘/pointer/activation；spawn后任何失败报EXECUTION_UNKNOWN。Swift API边界桩10例（dispatch计数）+transport拒绝12例Red/Green。
+- [ ] CU-012a2：真实fixture native lane `pnpm run test:native-action`（独立state文件核验set_value+press各一次、stale/替换拒绝无副作用）。2026-11-09实跑exit3/NOT_RUN（缺AX权限），不算完成。
+- [ ] CU-012a3：host组合（lease/approval/queue/ledger dispatch_pending→act_fixture→receipt）与模型工具，在CU-015。
 - 范围：AXPress、set_value；type_text 必须有 targetHandle。受限 keyboard route 默认关闭，具能力才开启；first-key 前再次核对焦点。
 - 接口/产物：每次 native 输入前重验，down/up 成对，禁止 AX 成功后自动再键盘重试；background 不 activation。
 - 非目标：不提供 free-focus typing、任意 shortcut 或坐标 fallback。
@@ -415,6 +417,7 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 - 2026-11-09（CU-002c）：固定process.execPath/argv/cwd的8step开发验证器，strictVitest分母/限定源码前后digest含untracked+HEAD/dirty、固定NO_GO，失败后剩余not_run，native只显式opt-in/固定缺权限exit3。26report+11snapshot+5copiedrunner新增42tests；父实际runner1023tests/48files、8steps0、133sourcefiles/digestsame/dirtytrue，nativeNOT_RUN整体3。独立code7reads/42tests+tsc0无finding/noProbe；不是release/完整依赖/签名/MVP。恢复入口见 [交接](<../current-handoff.md>)。
 - 2026-11-09（PR授权）：用户请求创建 PR，获准提交/推送现有foundation开发分支；远端仍空，main仅以既有空root作PR基线。创建Draft供审查，不自动合并、发布或安装，不把PR当MVP完成。历史untracked/未push记录保留其运行时间语境，当前Git/远端状态需实时核对。
 - 2026-11-09 17:50（新授权）：用户授权仅fixture语义动作AXPress/set_value的实现与native实测、终点CU-015/016 fixture闭环、每切片新分支commit/push/Draft PR；TCC由用户手动授予DeepSeek Harness.app。当时实跑test:native-observation仍exit3/NOT_RUN，verify-foundation 1023tests/48files 8steps0。键盘/pointer/真实应用/安装/发布/合并仍未授权。
+- 2026-11-09（CU-012a1）：helper act_fixture语义动作与TS act客户端；health capability mutation=fixture_semantic_only。Red（缺FixtureAction.swift编译失败）→Green；全量1048tests/50files、typecheck/invariants/package exit0。test:native-action exit3/NOT_RUN（缺AX）。
 - 下一步：CU-006c/CU-007b2b真实AX成功仍缺权限，不以fake identity替代AX验收。可拆host-only来源票与inert控制复检或完成开发基线/验收交接，但不提供native executor/真实consent或dispatch许可；CU-008b2/CU-009b/CU-010b2b2/c/CU-011b/CU-013b/CU-014b/CU-024b native/live/磁盘/分发gate保留。real-app、model与Web UI未运行。
 
 ## Decision log

@@ -9,7 +9,7 @@ if (process.platform !== 'darwin' || !['arm64', 'x64'].includes(process.arch)) {
 const root = process.cwd();
 await mkdir(resolve(root, 'dist/native'), { recursive: true });
 await mkdir(resolve(root, '.local/swift-module-cache'), { recursive: true });
-const sources = ['native/ProcessIdentity.swift', 'native/Helper/FixtureTextPolicy.swift', 'native/Helper/FixtureElementPolicy.swift', 'native/Helper/FixtureElementScan.swift', 'native/Helper/FixtureObservation.swift', 'native/Helper/FixtureRevalidation.swift', 'native/Helper/main.swift'];
+const sources = ['native/ProcessIdentity.swift', 'native/Helper/FixtureTextPolicy.swift', 'native/Helper/FixtureElementPolicy.swift', 'native/Helper/FixtureElementScan.swift', 'native/Helper/FixtureObservation.swift', 'native/Helper/FixtureRevalidation.swift', 'native/Helper/FixtureAction.swift', 'native/Helper/main.swift'];
 const architecture = process.arch === 'arm64' ? 'arm64' : 'x86_64';
 const binary = resolve(root, 'dist/native/CUHelper');
 async function sourceDigest() {
@@ -27,9 +27,9 @@ if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status ?? 1);
 if (await sourceDigest() !== beforeDigest) throw new Error('ARTIFACT_INVALID: Helper sources changed during compilation. Rebuild the helper.');
 await writeFile(resolve(root, 'dist/native/helper-manifest.json'), `${JSON.stringify({
-  protocolVersion: 1, commands: ['health', 'observe_fixture', 'revalidate_fixture'], architecture, deploymentTarget: '14.0',
+  protocolVersion: 1, commands: ['health', 'observe_fixture', 'revalidate_fixture', 'act_fixture'], architecture, deploymentTarget: '14.0',
   sourceDigest: beforeDigest,
   binaryDigest: createHash('sha256').update(await readFile(binary)).digest('hex'),
   distribution: 'local-development-only',
 }, null, 2)}\n`);
-console.log('Built read-only fixture helper. Build reads no UI and dispatches no input.');
+console.log('Built fixture helper (read + fixture-only semantic actions). Build reads no UI and dispatches no input.');

@@ -43,8 +43,8 @@ describe('A-03: managed native health transport', () => {
     expect(result).toMatchObject({
       protocolVersion: 1,
       status: 'ok',
-      commands: ['health', 'observe_fixture', 'revalidate_fixture'],
-      capabilities: { axObservation: false, mutation: false, keyboard: false, pointer: false },
+      commands: ['health', 'observe_fixture', 'revalidate_fixture', 'act_fixture'],
+      capabilities: { axObservation: false, mutation: 'fixture_semantic_only', keyboard: false, pointer: false },
       permissions: { accessibility: expect.any(Boolean), screenCapture: expect.any(Boolean) },
     });
     expect(result.helperPid).toBeGreaterThan(0);

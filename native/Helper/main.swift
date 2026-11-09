@@ -61,8 +61,8 @@ case "health":
     guard Set(request.keys) == Set(["protocolVersion", "requestId", "launchId", "command"]) else { stop("INVALID_REQUEST") }
     // Preflight never prompts or captures. This branch reads no UI content.
     response.merge([
-        "status": "ok", "commands": ["health", "observe_fixture", "revalidate_fixture"], "helperPid": ProcessInfo.processInfo.processIdentifier,
-        "capabilities": ["axObservation": false, "mutation": false, "keyboard": false, "pointer": false],
+        "status": "ok", "commands": ["health", "observe_fixture", "revalidate_fixture", "act_fixture"], "helperPid": ProcessInfo.processInfo.processIdentifier,
+        "capabilities": ["axObservation": false, "mutation": "fixture_semantic_only", "keyboard": false, "pointer": false],
         "permissions": ["accessibility": AXIsProcessTrusted(), "screenCapture": CGPreflightScreenCaptureAccess()],
     ]) { _, new in new }
 case "observe_fixture":
@@ -108,6 +108,35 @@ case "revalidate_fixture":
         try revalidateFixture(pid: pid.int32Value, start: start, windowKey: key, windowId: windowId.intValue,
                               windowInstance: windowInstance, identifier: identifier, instance: instance, operation: operation)
         response["status"] = "exact"; response["target"] = target; response["element"] = element
+    } catch let error as FixtureReadFailure {
+        response["status"] = "error"; response["code"] = error.code
+    } catch { response["status"] = "error"; response["code"] = "CAPABILITY_UNAVAILABLE" }
+case "act_fixture":
+    // Owned fixture only: one exact element, press or set_value. Canonical sorted encoding rejects duplicate keys.
+    guard let canonical = try? JSONSerialization.data(withJSONObject: request, options: [.sortedKeys]), canonical == raw else { stop("INVALID_REQUEST") }
+    let keys = Set(request.keys)
+    guard keys == Set(["protocolVersion", "requestId", "launchId", "command", "target", "element"]) ||
+            keys == Set(["protocolVersion", "requestId", "launchId", "command", "target", "element", "value"]),
+          let target = request["target"] as? [String: Any],
+          Set(target.keys) == Set(["pid", "processStart", "windowKey", "windowId", "windowInstance"]),
+          let pid = target["pid"] as? NSNumber, CFGetTypeID(pid) != CFBooleanGetTypeID(),
+          pid.doubleValue.rounded() == pid.doubleValue, pid.doubleValue > 0, pid.doubleValue <= Double(Int32.max),
+          let start = target["processStart"] as? String, validId(start),
+          let key = target["windowKey"] as? String, ["primary", "secondary"].contains(key),
+          let windowId = target["windowId"] as? NSNumber, CFGetTypeID(windowId) != CFBooleanGetTypeID(),
+          windowId.doubleValue.rounded() == windowId.doubleValue, windowId.doubleValue > 0, windowId.doubleValue <= Double(Int32.max),
+          let windowInstance = target["windowInstance"] as? String, validId(windowInstance),
+          let element = request["element"] as? [String: Any], Set(element.keys) == Set(["identifier", "instance", "operation"]),
+          let identifier = element["identifier"] as? String, fixtureActionIdentifiers.contains(identifier),
+          let instance = element["instance"] as? String, fixtureElementInstance("fixture.element." + instance) != nil,
+          let operation = element["operation"] as? String, ["press", "set_value"].contains(operation) else { stop("INVALID_REQUEST") }
+    let value = request["value"] as? String
+    guard (operation == "press" && request["value"] == nil) ||
+          (operation == "set_value" && value != nil && value!.utf16.count <= 1024) else { stop("INVALID_REQUEST") }
+    do {
+        response.merge(try actFixture(pid: pid.int32Value, start: start, windowKey: key, windowId: windowId.intValue,
+                                      windowInstance: windowInstance, identifier: identifier, instance: instance,
+                                      operation: operation, value: value)) { _, new in new }
     } catch let error as FixtureReadFailure {
         response["status"] = "error"; response["code"] = error.code
     } catch { response["status"] = "error"; response["code"] = "CAPABILITY_UNAVAILABLE" }

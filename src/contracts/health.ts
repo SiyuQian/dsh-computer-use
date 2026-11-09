@@ -10,11 +10,11 @@ export const nativeHealthSchema = z.strictObject({
   requestId: opaqueId,
   launchId: opaqueId,
   status: z.literal('ok'),
-  commands: z.tuple([z.literal('health'), z.literal('observe_fixture'), z.literal('revalidate_fixture')]),
+  commands: z.tuple([z.literal('health'), z.literal('observe_fixture'), z.literal('revalidate_fixture'), z.literal('act_fixture')]),
   helperPid: z.number().int().positive(),
   capabilities: z.strictObject({
     axObservation: z.literal(false),
-    mutation: z.literal(false),
+    mutation: z.literal('fixture_semantic_only'),
     keyboard: z.literal(false),
     pointer: z.literal(false),
   }),
