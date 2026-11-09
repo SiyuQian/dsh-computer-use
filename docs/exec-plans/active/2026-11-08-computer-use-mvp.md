@@ -201,6 +201,7 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 - [ ] CU-010b2b：Depends CU-010b2a，生产统一per-user namespace、安全启动/配置生命周期和可供用户可靠调用的独立停止入口；不将测试namespace当生产完成。
   - [x] CU-010b2b1：固定OS euid路径策略、安全leaf创建与witness，锁内发布/有界读取stop-only私有发现记录，独立stop CLI源码/构建；自有临时parent跨进程/崩溃/IO fault已验，不创建/stop生产namespace。见 [路径切片](<../../design-docs/control-namespace.md>)。
   - [ ] CU-010b2b2：Depends b2b1，获准生产路径启动/真实用户可达性、发布安装生命周期和executor可服务性验证；native开放前必须完成。
+    - [x] CU-010b2b2a：`CUController`（native/Controller）持per-user ControlLock+StopListener+发现记录整个生命周期，host经stdin begin/end领取单次dispatch槽，busy/第二controller拒绝，独立`CUController --stop`或CUStop sticky撤销→host signal abort且不再grant；EOF/exit即撤销。TS [controller client](<../../../src/backend/macos/controller.ts>)；5项真实进程测试在owned临时parent（Red缺模块→Green）。生产路径只在插件启用时由host启动，尚未在真实Profile验收；安装/签名仍CU-024b/025。
 - [ ] CU-010c：Depends CU-007b/CU-008b2/CU-009b/CU-010a/b2b，live生命周期/权限撤销、broker与native排空/独立stop组合接线；未满足前不开放输入。见 [协调切片](<../../design-docs/host-coordination.md>)。
 - 范围：宿主串行队列、目标租用、单 OS 用户唯一 broker/系统锁、阶段状态、abort 与安全释放协议；先提供不依赖模型的最小 host/local 紧急停止入口。
 - 接口/产物：多 Agent/多 host 不同时 native 变更；锁丢失不继续输入；控制状态可查询。任何 native 变更开放前，停止入口必须有鉴权/本地可靠调用与可测试路径。CU-016 再完善 UI，不后置最小停止。
@@ -418,6 +419,7 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 - 2026-11-09（PR授权）：用户请求创建 PR，获准提交/推送现有foundation开发分支；远端仍空，main仅以既有空root作PR基线。创建Draft供审查，不自动合并、发布或安装，不把PR当MVP完成。历史untracked/未push记录保留其运行时间语境，当前Git/远端状态需实时核对。
 - 2026-11-09 17:50（新授权）：用户授权仅fixture语义动作AXPress/set_value的实现与native实测、终点CU-015/016 fixture闭环、每切片新分支commit/push/Draft PR；TCC由用户手动授予DeepSeek Harness.app。当时实跑test:native-observation仍exit3/NOT_RUN，verify-foundation 1023tests/48files 8steps0。键盘/pointer/真实应用/安装/发布/合并仍未授权。
 - 2026-11-09（CU-012a1）：helper act_fixture语义动作与TS act客户端；health capability mutation=fixture_semantic_only。Red（缺FixtureAction.swift编译失败）→Green；全量1048tests/50files、typecheck/invariants/package exit0。test:native-action exit3/NOT_RUN（缺AX）。
+- 2026-11-09（CU-010b2b2a）：per-user CUController+TS client，单槽/busy/独立stop/sticky撤销真实进程验证；build:stop同步构建controller。全量1053tests/51files（一次负载下helper-artifact cancel_after_parse偶发失败，单跑3/3、全量2/2通过，记为flaky观察）。
 - 下一步：CU-006c/CU-007b2b真实AX成功仍缺权限，不以fake identity替代AX验收。可拆host-only来源票与inert控制复检或完成开发基线/验收交接，但不提供native executor/真实consent或dispatch许可；CU-008b2/CU-009b/CU-010b2b2/c/CU-011b/CU-013b/CU-014b/CU-024b native/live/磁盘/分发gate保留。real-app、model与Web UI未运行。
 
 ## Decision log
