@@ -77,4 +77,16 @@ describe('CU-010b2b2: per-user native controller gate and independent stop', () 
     await appendFile(join(copy, 'dist/native/CUController'), 'tampered');
     await expect(NativeController.start(copy, { testParent: path })).rejects.toThrow('ARTIFACT_INVALID');
   });
+
+  it('measures independent stop latency: the host signal aborts within 500 ms of the stop client returning', async () => {
+    const path = await parent('latency');
+    const controller = await NativeController.start(resolve('.'), { testParent: path });
+    try {
+      const slot = await controller.begin();
+      expect(await stopClient(path)).toBe(0);
+      const returned = performance.now();
+      await new Promise<void>((done) => { if (slot.signal.aborted) done(); else slot.signal.addEventListener('abort', () => done(), { once: true }); });
+      expect(performance.now() - returned).toBeLessThan(500);
+    } finally { await controller.close(); }
+  });
 });

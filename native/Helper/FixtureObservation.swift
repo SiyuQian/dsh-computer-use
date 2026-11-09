@@ -73,7 +73,7 @@ private struct FixtureWalker {
         let identity = CFHash(element)
         if !visited.insert(identity).inserted { reasons.insert("unavailable"); return }
         guard let role = stringAttribute(element, kAXRoleAttribute) else { reasons.insert("unavailable"); return }
-        let subrole = stringAttribute(element, kAXSubroleAttribute)
+        let subrole = fixtureSubrole(element)
         let identifier = stringAttribute(element, kAXIdentifierAttribute)
         let allowedRoles = [kAXButtonRole, kAXTextFieldRole, kAXStaticTextRole, kAXGroupRole, kAXWindowRole]
         let publicText = isPublicFixtureText(role: role, subrole: subrole, identifier: identifier)

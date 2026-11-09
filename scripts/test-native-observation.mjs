@@ -29,7 +29,7 @@ try {
   } else {
     directory = await mkdtemp(join(tmpdir(), 'cu-native-observation-'));
     fixture = ctx.subprocess.spawn({
-      argv: [resolve('dist/native/CUFixture.app/Contents/MacOS/CUFixture'), '--observe-host', '--state-dir', directory],
+      argv: [resolve('dist/native/CUFixture.app/Contents/MacOS/CUFixture'), '--host-visible', '--state-dir', directory] /* hidden windows are not exposed via AXWindows */,
       cwd: process.cwd(), stdio: { stdin: 'pipe', stdout: 'pipe', stderr: { maxBytes: 256 } },
       graceMs: 100, signal: AbortSignal.timeout(10_000),
     });
@@ -42,7 +42,7 @@ try {
       });
       fixture.done.then(() => reject(new Error('Fixture exited before readiness.')), reject);
     });
-    assert.equal(ready.shownWindows, 0);
+    assert.equal(ready.shownWindows, 2);
     assert.equal(ready.injectedInput, false);
     for (const window of ready.windows) {
       const target = { pid: ready.pid, processStart: ready.processStart, ...window };
