@@ -10,10 +10,10 @@
 | [实施基线](<implementation-baseline.md>) | 授权、空仓库、工作树、版本与路线 | 本机已核实 |
 | [SDK 兼容调查](<sdk-compatibility.md>) | 真实 DSH API、日志与生命周期 | 源码核查 + 内存容器验证；未运行完整 GUI/Profile |
 | [AppKit fixture](<fixture.md>) | 自有原生窗口与独立测试状态 | 已构建/hidden self-test；未运行 helper AX 输入 |
-| [Native transport](<native-transport.md>) | health/fixture读取协议、取消/超时/终止 | 真实Swift+公开provider拒绝验证；无输入 |
+| [Native transport](<native-transport.md>) | health/fixture读取协议、取消/超时/终止 | 真实Swift+公开provider拒绝验证；`act_fixture`见 [架构](<../../ARCHITECTURE.md>) 与CU-012 |
 | [Local helper artifacts](<helper-artifacts.md>) | source/recipe/manifest/binary与Mach-O开发一致性、每次spawn前检查 | 真实helper health与临时副本/故障负测；非签名/分发认证 |
-| [Fixture observation](<fixture-observation.md>) | 精确身份、AX预算、secure投影与native gate | 部分实现；缺AX权限，native成功路径NOT_RUN |
-| [Fixture revalidation](<fixture-revalidation.md>) | element lifetime witness/closed只读重验/完整扫描 | private handle/授权service单元+真实helper拒绝/pure/AX边界stub；真实AX成功NOT_RUN |
+| [Fixture observation](<fixture-observation.md>) | 精确身份、AX预算、secure投影与native gate | 已实现；真实AX成功在自有fixture实跑（TCC用户手动授予） |
+| [Fixture revalidation](<fixture-revalidation.md>) | element lifetime witness/closed只读重验/完整扫描 | private handle/授权service单元+真实helper拒绝/pure/AX边界stub；真实AX exact在native-observation lane实跑；rebind未实现 |
 | [Observation lifecycle](<observation-lifecycle.md>) | host ticket/scope/TTL/成员候选与private观察派生单次action-intent | 单元/Session事件；HMAC与原obs/grant mono TTL，不接control授权/native/输入 |
 | [Read authorization](<read-authorization.md>) | exact fixture只读grant、撤销与发布前复检 | host-only单元验证；无生产consent/工具/控制授权 |
 | [Read runtime/lifecycle](<read-runtime.md>) | private只读组合/每次host绑定、scope撤销、公开事件与复合卸载 | 真Cordis/SessionStore+managed故障child退出，Agent registry/turn/cwd仍seam，非生产consent/drain |

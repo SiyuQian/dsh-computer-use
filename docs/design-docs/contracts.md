@@ -1,6 +1,6 @@
 # 接口与状态约定
 
-状态：目标契约与已实现基础子集并列。当前运行时schema位于 [contracts](<../../src/contracts/index.ts>)，是请求校验单一来源；基础接受press/set_value proposal、host actionId execute引用，native只支持health、严格fixture-only observe与 [只读revalidate](<fixture-revalidation.md>)（成功AX lane未验，所有变更关闭）。纯host [观察生命周期](<observation-lifecycle.md>)、[控制策略](<control-authorization.md>)、[单次批准绑定](<single-use-approval.md>) 已有inert内核；[宿主协调与锁原语](<host-coordination.md>) 已有单元/临时namespace切片，未接生产broker。[动作账本](<action-ledger.md>) 已有签名id/durable pending/只读恢复host切片。键盘、pointer、live批准与ledger/native组合、生产stop入口、native写入与evidence store均未实现。独立stop原语仅 [测试namespace进程切片](<independent-stop.md>) 已验。其余时限与能力描述仍是后续提案。
+状态：目标契约与已实现基础子集并列。当前运行时schema位于 [contracts](<../../src/contracts/index.ts>)，是请求校验单一来源；基础接受press/set_value proposal、host actionId execute引用，native只支持health、严格fixture-only observe与 [只读revalidate](<fixture-revalidation.md>)（真实AX lane已在自有fixture实跑），以及仅自有fixture的单次 `act_fixture` press/set_value。纯host [观察生命周期](<observation-lifecycle.md>)、[控制策略](<control-authorization.md>)、[单次批准绑定](<single-use-approval.md>) 已有inert内核；[宿主协调与锁原语](<host-coordination.md>) 已有单元/临时namespace切片，未接生产broker。[动作账本](<action-ledger.md>) 已有签名id/durable pending/只读恢复host切片。键盘、pointer、live批准与ledger/native组合、生产stop入口、native写入与evidence store均未实现。独立stop原语仅 [测试namespace进程切片](<independent-stop.md>) 已验。其余时限与能力描述仍是后续提案。
 
 ## 1. 信任与来源
 

@@ -15,7 +15,7 @@ Last reviewed: 2026-11-09（Pacific/Auckland）。按已运行证据描述，不
 | 本地helper一致性 | source/recipe/manifest/binary/Mach-O与bounded FD读取已验 | [产物gate](<design-docs/helper-artifacts.md>) | 非publisher签名/原子exec/同UID隔离，不涵盖fixture/stop分发，CU-024b未完成 |
 | fixture 观察 | reader/投影与真实AX观察成功verified（TCC用户手动授予） | [观察设计](<design-docs/fixture-observation.md>) | 仅自有fixture；CU-006父卡验收未关闭 |
 | 观察生命周期/单次intent | host有界观察成员、private witness与readgrant派生HMACintent/继承TTL/事件清理已验 | [生命周期](<design-docs/observation-lifecycle.md>) | 只是read candidate，不接controlruntime/consent/native或输入，不执行写入 |
-| fixture只读目标重验 | witness/纯策略/API边界负测与真实helper拒绝已验 | [重验设计](<design-docs/fixture-revalidation.md>) | private handle/授权service已host单元验；AX成功lane exit3/NOT_RUN、rebind未实现，CU-007b2b仍依赖006c |
+| fixture只读目标重验 | witness/纯策略/API边界负测、真实helper拒绝，及native-observation lane中真实AX exact已验 | [重验设计](<design-docs/fixture-revalidation.md>) | rebind未实现，CU-007b2b未完成 |
 | fixture读授权 | 纯host默认拒绝内核及service单元verified | [授权设计](<design-docs/read-authorization.md>) | 内部事件适配另有验证，未接用户consent/配置UI/生产入口/native成功 |
 | 只读runtime/宿主事件 | private组合/Agent与Session退休/cwd变更/重载隔离已验 | [runtime设计](<design-docs/read-runtime.md>) | 真Cordis/SessionStore+managed取消，不是完整AgentLoop/consent/生产入口或native drain |
 | 控制策略/内部runtime | inert lease/risk及私有策略+共享scope/公开Session事件撤销已验 | [控制设计](<design-docs/control-authorization.md>)、[runtime](<design-docs/control-runtime.md>) | 无native exact/真实consent/执行器/生产入口，CU-008b2仍未完成 |
@@ -27,12 +27,13 @@ Last reviewed: 2026-11-09（Pacific/Auckland）。按已运行证据描述，不
 | 固定namespace/发现CLI | 固定路径策略、safe publication、stop-only本地构建verified | [路径与发现](<design-docs/control-namespace.md>) | 仅owned-parent正向、CLI help/拒绝，无生产stop调用/安装验收 |
 | 生产幂等/用户停止 | fixture路径：per-user controller、cu_stop/独立`CUController --stop`<500ms verified | [CU-016a](<exec-plans/active/2026-11-08-computer-use-mvp.md>) | 无Web GUI停止按钮；生产broker组合CU-010c/011b未完成 |
 | AppKit fixture | 构建 + hidden self-test verified | [fixture tests](<../tests/fixture/fixture.test.ts>) | 未显示 UI，无外部 AX/input/TCC 验收 |
-| native transport | health与fixture读取拒绝verified | [transport tests](<../tests/transport/>) | 无成功UI读取验收，不是输入安全证明 |
+| native transport | health、fixture读取拒绝与 `act_fixture` 拒绝verified；真实AX读取/动作由native lanes覆盖 | [transport tests](<../tests/transport/>) | 仅自有fixture，不是输入安全证明 |
 | 保守阶段回执/固定评估接线 | kernel单调事实及private固定policy→not_executed终态、scope先封存/迟到首terminal、typed拒绝已验 | [回执设计](<design-docs/action-receipts.md>) | 不认证native/观察来源/ledger或效果，无ACK/dispatchruntime入口，CU-013b未完成 |
 | 内存artifact暂存/内部生命周期 | 默认关闭、逐次独立policy+live观察target/read grant、字节预算/TTL、真实Session事件清理与abort前owned清零已验 | [暂存设计](<design-docs/ephemeral-artifacts.md>) | 无capture/PNG认证/磁盘/公开route/生产入口consent，非可信evidence，CU-014b未完成 |
 | 原生动作与真实 app | fixture真实AX观察/press/set_value/e2e已实跑通过（2026-11-09，TCC用户手动授予） | test:native-observation/action/e2e 各连续3次exit0 | 未在真实DSH Profile+模型中运行；真实app/键盘/pointer未授权 |
 | 隐私 | 私人数据 no-go | [SDK 日志调查](<design-docs/sdk-compatibility.md>) | host 会记录收到的原始参数，strict schema 不能补救 |
-| UI/模型 | 未实现/未运行 | 没有演示或成功率声明 | CU-016/026 |
+| fixture 模型工具 | `fixtureControl` 下 cu_observe/cu_act/cu_stop 在真实Cordis/ToolsService注册与参数边界verified | [tools profile](<../tests/profile/computer-use-tools.test.ts>)、[service](<../tests/unit/fixture-computer-use.test.ts>) | 未由真实模型调用；未在真实Profile安装 |
+| UI/模型 | 未实现/未运行 | 没有演示或成功率声明 | CU-016b/026 |
 
 准确环境、红/绿和独立审查修正见 [基础验证记录](<verification/foundation.md>)。
 

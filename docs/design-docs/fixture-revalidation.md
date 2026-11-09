@@ -2,6 +2,8 @@
 
 状态：2026-11-09（Pacific/Auckland）。自有控件生命周期witness、read-only revalidate_fixture协议/客户端、bounded扫描与fail-closed策略已有代码；纯Swift/API-boundary stub及真实helper拒绝路径已验。真实AX成功lane仍缺accessibility，exit3/NOT_RUN；不等于CU-007b完成，没有native输入或public handle执行。
 
+> 2026-11-09 更新：真实AX下 `test:native-observation`、`test:native-action`、`test:native-e2e` 已在自有fixture实跑（TCC由用户手动授予，见 [总计划](<../exec-plans/active/2026-11-08-computer-use-mvp.md>) CU-012a2/CU-015c）。下文中“缺AX权限/NOT_RUN”的描述是当时记录；缺权限时 lane 仍 exit3/NOT_RUN。
+
 ## 控件身份不是旧index或标签
 
 [FixtureWindow](<../../native/Fixture/FixtureWindow.swift>) 保留原稳定AXIdentifier（fixture.text、fixture.submit等），另在每个actionable控件创建时通过公开AXHelp发布`fixture.element.element_<UUID>`。同一个控件reorder仍保留instance，replaceTarget创建新对象和新instance；双窗口相互独立。模拟secure字段不发布可操作instance，不暴露值。

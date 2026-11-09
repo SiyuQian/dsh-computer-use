@@ -23,6 +23,7 @@ pnpm run test:native-e2e
 
 - verify-foundation `--native-observation`：runId `a7efdf9f-ca9e-4f6f-a420-dddcb3a9b40c`，8steps全部exit0，**1086tests/54files**，failed/pending/todo均0；限定源码151files/990743bytes，前后digest `97297d77…`一致，dirty=false；显式native-observation passed，整体exit0。helperBinaryDigest `a99f9a10…`。
 - 同一worktree中`test:native-action`与`test:native-e2e`各exit0（单次复跑；连续3次证据见 [总计划](<active/2026-11-08-computer-use-mvp.md>) CU-012a2/CU-015c）。
+- 2026-11-09 19:28 文档刷新会话（HEAD `0d78bb1`，DSH workspace-write 沙箱）：verify-foundation runId `6615df55…` exit1，1085/1086；唯一失败为 [helper-artifact](<../../tests/transport/helper-artifact.test.ts>) 的 setuid 用例——该沙箱内`chmod 4755`静默丢弃setuid位，故障无法构造，非代码回归，但未在此环境证明通过。同会话`test:native-e2e` exit0（单次）。后续在无此限制的环境重跑。
 - 验证器的`releaseDecision`恒为NO_GO；`unmetGates`中`NATIVE_CONTROL_NOT_IMPLEMENTED`是 [report.mjs](<../../scripts/verification/report.mjs>) 的固定常量，在fixture语义动作实现后已不准确。修改它须作为独立代码切片，并同时更新测试。
 
 ## 当前能力

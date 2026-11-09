@@ -1,6 +1,6 @@
 # Reliability：foundation 与 fixture
 
-当前只有一次性只读health/fixture helper和inert host调度内核，没有生产输入队列或控制任务，因此没有桌面自动化SLO。下列只描述实际运行切片。
+当前有一次性只读health/fixture helper、inert host调度内核，以及仅限自有fixture的单次动作闭环（`act_fixture`，spawn后任何失败为 EXECUTION_UNKNOWN，不重试）。没有生产输入队列或桌面自动化SLO；唯一实测时限是fixture路径独立stop到host abort <500ms（CU-016a）。下列只描述实际运行切片。
 
 ## 现有行为
 
@@ -47,6 +47,6 @@
 
 health helper 已建立协议版本、8KiB 上限、timeout、cancel 和 bounded terminate/cleanup，见 [transport](<design-docs/native-transport.md>)。stop 与 done race，即使 provider 不 settle 也不无限等待。退出不能证明时明确 cleanup failed，不返回成功。
 
-CU-006已实现fixture-only observe协议与reader；native成功路径仍缺AX权限，显式lane以exit3/NOT_RUN报告。reader最多64节点/12深度/1024值，响应262144bytes；health保留8192。read许可签发归CU-008。CU-010/011 才建立唯一 controller、durable dispatch ledger 和 unknown 不重放。CU-013 明确执行/效果/任务结果。CU-016 测量停止延迟。
+CU-006已实现fixture-only observe协议与reader；真实AX成功路径已在自有fixture实跑，缺权限时显式lane仍以exit3/NOT_RUN报告。reader最多64节点/12深度/1024值，响应262144bytes；health保留8192。read许可签发归CU-008。CU-010/011 才建立唯一 controller、durable dispatch ledger 和 unknown 不重放。CU-013 明确执行/效果/任务结果。CU-016 测量停止延迟。
 
 上述未来时限见 [合同](<design-docs/contracts.md>)，必须实测后再声明。不可把本机 self-test 速度作为产品性能承诺。
