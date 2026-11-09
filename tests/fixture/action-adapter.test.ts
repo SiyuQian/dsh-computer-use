@@ -31,12 +31,14 @@ it.each([
   ['set_error', { status: 'dispatched', execution: 'unknown', readback: 'unavailable', dispatches: 1, valueReads: 0 }],
   ['press_clean', { status: 'dispatched', execution: 'completed', readback: 'not_applicable', dispatches: 1, valueReads: 0 }],
   ['press_timeout', { status: 'dispatched', execution: 'unknown', readback: 'not_applicable', dispatches: 1, valueReads: 0 }],
+  ['set_unsupported_subrole', { status: 'dispatched', execution: 'completed', readback: 'match', dispatches: 1, valueReads: 1 }],
+  ['press_unsupported_subrole', { status: 'dispatched', execution: 'completed', readback: 'not_applicable', dispatches: 1, valueReads: 0 }],
 ])('dispatches exactly once after exact revalidation and reports %s conservatively', (mode, expected) => {
   expect(run(mode)).toEqual(expected);
 });
 
 it.each([
-  ['replaced', 'TARGET_CHANGED'], ['untrusted', 'READ_DENIED'], ['identity_lost_before_dispatch', 'TARGET_CHANGED'],
+  ['replaced', 'TARGET_CHANGED'], ['untrusted', 'READ_DENIED'], ['set_subrole_error', 'CAPABILITY_UNAVAILABLE'], ['press_subrole_error', 'CAPABILITY_UNAVAILABLE'], ['identity_lost_before_dispatch', 'TARGET_CHANGED'],
 ])('never dispatches when %s before input', (mode, code) => {
   expect(run(mode)).toEqual({ status: 'error', code, dispatches: 0, valueReads: 0 });
 });

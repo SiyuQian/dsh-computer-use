@@ -39,8 +39,14 @@ func AXUIElementCopyAttributeValue(_ element: AXUIElement, _ name: CFString, _ o
         if mode == "set_readback_error" { return .cannotComplete }
         output.pointee = (mode == "set_readback_mismatch" ? "other" : written) as CFString
     case kAXRoleAttribute: output.pointee = (same(element, windowNode) ? "AXWindow" : pressMode ? "AXButton" : "AXTextField") as CFString
-    case kAXSubroleAttribute: output.pointee = "" as CFString
+    case kAXSubroleAttribute:
+        // Real macOS NSTextField/NSButton report attributeUnsupported for AXSubrole (observed 2026-11-09).
+        if mode.hasSuffix("_unsupported_subrole") { return .attributeUnsupported }
+        if mode.hasSuffix("_subrole_error") { return .cannotComplete }
+        output.pointee = "" as CFString
     case kAXIdentifierAttribute:
+        // Real AppKit unlabeled controls (window buttons, static text) report noValue (observed 2026-11-09).
+        if mode.hasSuffix("_novalue_identifier") && !same(element, windowNode) && !same(element, selectedNode) { return .noValue }
         output.pointee = (same(element, windowNode) ? "fixture.window.primary.7.window_fixture" : pressMode ? "fixture.submit" : "fixture.text") as CFString
     case kAXHelpAttribute: output.pointee = (mode == "replaced" ? "fixture.element.element_other" : "fixture.element.element_fixture") as CFString
     case kAXEnabledAttribute: output.pointee = kCFBooleanTrue

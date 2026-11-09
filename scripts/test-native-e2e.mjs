@@ -51,7 +51,7 @@ try {
     const first = await service.observe(exec, {});
     assert.equal(byName(first, 'Simulated password')?.secure, true);
     const set = await service.act(exec, { observationId: first.observationId, action: { kind: 'set_value', targetHandle: byName(first, 'Fixture text').handle, value: 'PUBLIC_E2E' } });
-    assert.equal(set.receipt.execution, 'completed'); assert.equal(set.readback, 'match');
+    assert.equal(set.receipt.execution, 'completed', JSON.stringify(set.receipt)); assert.equal(set.readback, 'match');
     const press = await service.act(exec, { observationId: first.observationId, action: { kind: 'press', targetHandle: byName(first, 'Submit test value').handle } });
     assert.equal(press.receipt.execution, 'completed');
     let current = await state();

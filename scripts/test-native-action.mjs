@@ -23,7 +23,7 @@ try {
   } else {
     directory = await mkdtemp(join(tmpdir(), 'cu-native-action-'));
     fixture = ctx.subprocess.spawn({
-      argv: [resolve('dist/native/CUFixture.app/Contents/MacOS/CUFixture'), '--observe-host', '--state-dir', directory],
+      argv: [resolve('dist/native/CUFixture.app/Contents/MacOS/CUFixture'), '--host-visible', '--state-dir', directory] /* hidden windows are not exposed via AXWindows */,
       cwd: process.cwd(), stdio: { stdin: 'pipe', stdout: 'pipe', stderr: { maxBytes: 256 } },
       graceMs: 100, signal: AbortSignal.timeout(20_000),
     });

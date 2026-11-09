@@ -146,7 +146,7 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 - Priority: P0。Depends: CU-005。Status: in_progress（native成功路径缺AX权限）。
 - [x] CU-006a：fixture-only严格读取合同、同用户PID/kernel start/固定executable、真实windowNumber与生命周期UUID witness；身份负向路径实测。
 - [x] CU-006b：reader/公共投影实现，64节点/12深度/值1024预算；安全字段positive allowlist与Swift getter计数负测实测；仍无可执行handle store。
-- [ ] CU-006c：真实AX成功读取两窗口、secure省略与identity重复/替换。显式test:native-observation现退出3/NOT_RUN（accessibility=false），不请求TCC，不算完成。
+- [x] CU-006c：2026-11-09 用户手动授予DeepSeek Harness辅助功能后，test:native-observation exit0（连续3次）：两窗口真实AX读取、secure不出值、私有handle exact重验、替换/stale拒绝。实测发现并修复：隐藏窗口不在AXWindows（lane改--host-visible）；AppKit控件AXSubrole返回attributeUnsupported、无标识控件AXIdentifier返回noValue，原实现误判为不可用→视为空值，其它错误仍fail-closed（新增Swift边界桩Red→Green）。
 - 审查修复：未知secure metadata禁止value getter；禁止合成窗口身份。详见 [观察设计](<../../design-docs/fixture-observation.md>)。
 - 范围：精确 app/window、节点/深度/文本上限、AX role/actions、secure value 脱敏、目标 descriptor 与 read 权限接口。
 - 接口/产物：Observation 的 backend 原始证据与 public 投影分离；身份不可取得时明确能力限制。
@@ -222,7 +222,7 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 
 - Priority: P0。Depends: CU-007、CU-009、CU-011。Status: in_progress（2026-11-09用户授权fixture语义动作）。
 - [x] CU-012a1：helper封闭`act_fixture`（仅自有fixture、press/set_value、canonical JSON、值≤1024且不回显）；同一exact重验元素、dispatch前最后identity/元素复检、单次AXPress/AXValue、无重试/键盘/pointer/activation；spawn后任何失败报EXECUTION_UNKNOWN。Swift API边界桩10例（dispatch计数）+transport拒绝12例Red/Green。
-- [ ] CU-012a2：真实fixture native lane `pnpm run test:native-action`（独立state文件核验set_value+press各一次、stale/替换拒绝无副作用）。2026-11-09实跑exit3/NOT_RUN（缺AX权限），不算完成。
+- [x] CU-012a2：`pnpm run test:native-action` 2026-11-09 exit0（连续3次）：真实AX set_value+press各一次，fixture state文件独立核验，stale/替换窗口拒绝且无副作用。
 - [ ] CU-012a3：host组合（lease/approval/queue/ledger dispatch_pending→act_fixture→receipt）与模型工具，在CU-015。
 - 范围：AXPress、set_value；type_text 必须有 targetHandle。受限 keyboard route 默认关闭，具能力才开启；first-key 前再次核对焦点。
 - 接口/产物：每次 native 输入前重验，down/up 成对，禁止 AX 成功后自动再键盘重试；background 不 activation。
@@ -255,7 +255,7 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 - Priority: P0。Depends: CU-013、CU-014。Status: in_progress（代码闭环完成，native lane缺AX未运行）。
 - [x] CU-015a：[FixtureComputerUse](<../../../src/service/fixture-computer-use.ts>) 组合：exact host bind→静态自有fixture read grant→观察→每动作host-static lease/风险→需要时真实DSH approval（never/unavailable拒绝）→per-user controller槽→durable ledger dispatch_pending→helper最后重验+单次dispatch→保守receipt→ledger terminal；不重试，unknown保留。12项注入seam单元（Red缺模块→Green）。
 - [x] CU-015b：插件Config `fixtureControl`（默认false，unknown key拒绝）开启后才注册cu_observe/cu_act/cu_stop；无pid/bundle/script/risk/approved参数。6项真实Cordis/ToolsService profile测试。`showFixture`默认true以`--host-visible`显示fixture（accessory、不激活）。
-- [ ] CU-015c：`pnpm run test:native-e2e` 真实helper+controller(owned临时namespace)+fixture：set_value/press由fixture state独立核验、approval不可用拒绝、replace后stale拒绝、独立stop后阻断。2026-11-09 exit3/NOT_RUN（缺AX）。
+- [x] CU-015c：`pnpm run test:native-e2e` 2026-11-09 exit0（连续3次）：真实helper+controller(owned临时namespace)+可见fixture；observe→set_value/press各一次（fixture state核验）、approval不可用拒绝、replace后stale拒绝、独立`CUController --stop`后阻断。verify-foundation --native-observation runId 0219d88f… exit0，1086/1086。未在真实DSH Profile/模型中运行。
 - 范围：host 工具 → TaskLease → observe → press/set_value → readback receipt → release；注册 gated exposure 与 dispose。先验证 CU-010 的独立最小停止入口，再开放变更工具。
 - 接口/产物：一个最小可用切片；只向 fixture allowlist 暴露控制，不对任意 app 自动放开。CU-016 完成前只允许测试专用 fixture 的语义动作；键盘变更保持关闭，不宣称可与用户并行操作。
 - 验证：BUILD、UNIT、TRANSPORT、NATIVE、PROFILE；A-01、A-05、A-10（工具层并发输入）、A-12、A-19（独立最小停止）、A-20。A-10/19 的真实输入集成门槛在本卡关闭前必须有非空洞证据。
@@ -425,6 +425,7 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 - 2026-11-09（CU-010b2b2a）：per-user CUController+TS client，单槽/busy/独立stop/sticky撤销真实进程验证；build:stop同步构建controller。全量1053tests/51files（一次负载下helper-artifact cancel_after_parse偶发失败，单跑3/3、全量2/2通过，记为flaky观察）。
 - 2026-11-09（CU-015a/b）：纵向组合服务+opt-in模型工具；修复helper-artifact探针真实50ms timer与伪mono时钟竞态的flaky（改2000ms，原断言不变），全量3次1071/1071。native-e2e exit3/NOT_RUN。
 - 2026-11-09（独立review修复）：P1 cu_stop在controller未启动/被撤销后死亡时不粘滞→host侧ControlGate粘滞；P1 read grant过期后缓存永久失效→过期重签；P2 跨scope取grant、ledger目录TMPDIR泄漏、controller请求无超时、CUController无一致性gate、5ms忙轮询。新增9测试（Red→Green），全量3次1077/1077。
+- 2026-11-09 18:50（TCC已授予）：三条native lane连续3次exit0；修复真实AX两处fail-closed误判（AXSubrole attributeUnsupported、AXIdentifier noValue）与隐藏窗口不可见。全量1086/1086×2。
 - 下一步：CU-006c/CU-007b2b真实AX成功仍缺权限，不以fake identity替代AX验收。可拆host-only来源票与inert控制复检或完成开发基线/验收交接，但不提供native executor/真实consent或dispatch许可；CU-008b2/CU-009b/CU-010b2b2/c/CU-011b/CU-013b/CU-014b/CU-024b native/live/磁盘/分发gate保留。real-app、model与Web UI未运行。
 
 ## Decision log
