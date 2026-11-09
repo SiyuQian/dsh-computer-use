@@ -32,7 +32,7 @@ Last reviewed: 2026-11-09（Pacific/Auckland）。按已运行证据描述，不
 | 内存artifact暂存/内部生命周期 | 默认关闭、逐次独立policy+live观察target/read grant、字节预算/TTL、真实Session事件清理与abort前owned清零已验 | [暂存设计](<design-docs/ephemeral-artifacts.md>) | 无capture/PNG认证/磁盘/公开route/生产入口consent，非可信evidence，CU-014b未完成 |
 | 原生动作与真实 app | fixture真实AX观察/press/set_value/e2e已实跑通过（2026-11-09，TCC用户手动授予） | test:native-observation/action/e2e 各连续3次exit0 | 未在真实DSH Profile+模型中运行；真实app/键盘/pointer未授权 |
 | 隐私 | 私人数据 no-go | [SDK 日志调查](<design-docs/sdk-compatibility.md>) | host 会记录收到的原始参数，strict schema 不能补救 |
-| fixture 模型工具 | `fixtureControl` 下 cu_observe/cu_act/cu_stop 在真实Cordis/ToolsService注册与参数边界verified | [tools profile](<../tests/profile/computer-use-tools.test.ts>)、[service](<../tests/unit/fixture-computer-use.test.ts>) | 未由真实模型调用；未在真实Profile安装 |
+| fixture 模型工具 | `fixtureControl` 下 cu_observe/cu_act/cu_stop 在真实Cordis/ToolsService注册与参数边界verified；经插件入口读取host服务（嵌套inject）、服务缺失不注册、approval可选读取已在内存Cordis verified | [tools profile](<../tests/profile/computer-use-tools.test.ts>)、[approval](<../tests/profile/fixture-tools-approval.test.ts>)、[service](<../tests/unit/fixture-computer-use.test.ts>) | 未由真实模型调用；未在真实Profile安装；入口到native的真机闭环未跑 |
 | UI/模型 | 未实现/未运行 | 没有演示或成功率声明 | CU-016b/026 |
 
 准确环境、红/绿和独立审查修正见 [基础验证记录](<verification/foundation.md>)。

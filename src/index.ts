@@ -3,7 +3,7 @@ import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { registerFixtureTools } from './host-adapter/fixture-tools.js';
+import { installFixtureTools } from './host-adapter/fixture-tools.js';
 
 export const name = 'computer-use';
 export const inject = ['tools'];
@@ -57,5 +57,5 @@ export function apply(ctx: Context, rawConfig?: unknown): void {
     },
   };
   ctx.tools.register(status);
-  if (fixture && process.platform === 'darwin') controlState = registerFixtureTools(ctx, repositoryRoot, { visible: config.showFixture });
+  if (fixture && process.platform === 'darwin') controlState = installFixtureTools(ctx, repositoryRoot, { visible: config.showFixture });
 }
