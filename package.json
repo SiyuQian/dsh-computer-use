@@ -48,6 +48,7 @@
     "test:fixture": "vitest run tests/fixture",
     "build:helper": "node scripts/build-helper.mjs",
     "build:stop": "node scripts/build-stop.mjs",
+    "build:controller": "node scripts/build-controller.mjs",
     "test:transport": "vitest run tests/transport",
     "test:native-observation": "node scripts/test-native-observation.mjs",
     "test:native-action": "node scripts/test-native-action.mjs",

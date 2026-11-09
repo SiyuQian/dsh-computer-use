@@ -26,3 +26,5 @@ await writeFile(resolve(root, 'dist/native/stop-manifest.json'), `${JSON.stringi
   distribution: 'local-development-only',
 }, null, 2)}\n`);
 console.log('Built stop-only local client. No controller was contacted, started, or installed.');
+// The per-user controller shares the stop sources; build it in the same fixed step.
+await import('./build-controller.mjs');
