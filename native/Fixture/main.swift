@@ -11,11 +11,13 @@ func fail(_ code: String, exitCode: Int32) -> Never {
 struct Options {
     let selfTest: Bool
     let observeHost: Bool
+    let visible: Bool
     let stateDirectory: URL
 
     init(_ arguments: [String]) throws {
         var selfTest = false
         var observeHost = false
+        var visible = false
         var directory: String?
         var index = 0
         while index < arguments.count {
@@ -26,6 +28,9 @@ struct Options {
             case "--observe-host":
                 guard !observeHost else { throw FixtureError.invalidArguments }
                 observeHost = true
+            case "--host-visible":
+                guard !observeHost else { throw FixtureError.invalidArguments }
+                observeHost = true; visible = true
             case "--state-dir":
                 guard directory == nil, index + 1 < arguments.count else { throw FixtureError.invalidArguments }
                 index += 1
@@ -37,6 +42,7 @@ struct Options {
         guard let directory, directory.hasPrefix("/"), !(selfTest && observeHost) else { throw FixtureError.invalidArguments }
         self.selfTest = selfTest
         self.observeHost = observeHost
+        self.visible = visible
         stateDirectory = URL(fileURLWithPath: directory, isDirectory: true)
     }
 }
@@ -139,16 +145,18 @@ if options.selfTest {
     do { try selfTest(store: store) }
     catch { fail("SELF_TEST_FAILED", exitCode: 1) }
 } else if options.observeHost {
-    application.setActivationPolicy(.prohibited)
+    application.setActivationPolicy(options.visible ? .accessory : .prohibited)
     do {
         let secondary = try makeSecondaryStore(primary: store)
         let windows = [
             FixtureWindow(store: store, title: "Computer Use Fixture — Primary") { fail("STATE_WRITE_FAILED", exitCode: 1) },
             FixtureWindow(store: secondary, title: "Computer Use Fixture — Secondary") { fail("STATE_WRITE_FAILED", exitCode: 1) },
         ]
+        // Visible host mode shows the windows without activating the app or taking focus (background collaboration).
+        if options.visible { for fixture in windows { fixture.window.orderFrontRegardless() } }
         guard let identity = processIdentity(getpid()) else { fail("IDENTITY_UNAVAILABLE", exitCode: 1) }
         let report: [String: Any] = ["bundleId": bundleIdentity, "pid": identity.pid, "processStart": identity.start,
-                                     "shownWindows": 0, "injectedInput": false,
+                                     "shownWindows": options.visible ? windows.count : 0, "injectedInput": false,
                                      "windows": windows.enumerated().map { index, fixture in
                                          ["windowKey": index == 0 ? "primary" : "secondary", "windowId": fixture.window.windowNumber,
                                           "windowInstance": fixture.windowInstance] as [String: Any]
