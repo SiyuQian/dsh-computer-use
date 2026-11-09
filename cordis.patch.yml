@@ -1,0 +1,4 @@
+# Development bundle. Registers diagnostics only. Native control is unavailable.
+- insert:
+    - id: siyuqian-computer-use
+      name: "@siyuqian/dsh-computer-use"
