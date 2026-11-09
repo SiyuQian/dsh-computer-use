@@ -55,4 +55,16 @@ describe('CU-015/018: fixture tools are opt-in and closed', () => {
     await instance.dispose();
     expect(ctx.tools.definitions()).toEqual([]);
   });
+
+  it('cu_status reports control state, and cu_stop makes it stopped without needing a controller', async () => {
+    const { ctx } = await boot({ fixtureControl: true });
+    const status = async () => {
+      const result = await executeToolFixture(ctx, { callId: ToolCallId('s'), name: 'cu_status', arguments: {}, signal: new AbortController().signal });
+      const text = result.content.find((block) => block.type === 'text'); return JSON.parse(text?.type === 'text' ? text.text : '{}');
+    };
+    expect((await status()).control).toBe('ready');
+    const stopped = await executeToolFixture(ctx, { callId: ToolCallId('stop'), name: 'cu_stop', arguments: {}, signal: new AbortController().signal });
+    expect(stopped.isError).toBe(false);
+    expect((await status()).control).toBe('stopped');
+  });
 });

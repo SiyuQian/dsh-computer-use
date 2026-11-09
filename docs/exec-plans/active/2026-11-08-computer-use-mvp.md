@@ -263,8 +263,9 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 
 ### CU-016 · 实现用户让权、可见状态与紧急停止
 
-- Priority: P0。Depends: CU-015。Status: pending。
-- [ ] 完成并留证。
+- Priority: P0。Depends: CU-015。Status: in_progress。
+- [x] CU-016a：cu_status在fixtureControl下报告control=ready/stopped/disabled；cu_stop（模型无关的独立`CUController --stop`同样）后为stopped且不依赖controller进程；独立stop到host signal abort延迟实测<500ms（tick100ms）。
+- [ ] CU-016b：DSH Web GUI内的停止按钮/状态面板（需在既有GUI URL验证）、用户输入冲突监测；未实现。
 - 范围：最小 Settings/状态 UI、控制目标/mode/phase、暂停/停止、用户输入冲突策略、监测缺失时能力关闭。
 - 接口/产物：停止不靠模型工具；UI RPC 鉴权；不记录实际键内容；停止延迟实测。
 - 验证：NATIVE、PROFILE、UI；A-16、A-18、A-19。实际 GUI 验证必须使用既有 DSH URL，不以替代服务器冒充。

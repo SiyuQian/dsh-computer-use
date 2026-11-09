@@ -25,7 +25,8 @@ const looseObject = { type: 'object' } as const;
  * Register the fixture-only model tools. Services (agents, sessions, workingDirectory, subprocess) are resolved lazily
  * from the host context at call time; a missing service fails closed. Approval uses the public DSH approval service.
  */
-export function registerFixtureTools(ctx: Context, repositoryRoot: string, options: { visible: boolean }): void {
+/** Returns a host-side control-state reader for cu_status. */
+export function registerFixtureTools(ctx: Context, repositoryRoot: string, options: { visible: boolean }): () => 'ready' | 'stopped' | 'disabled' {
   let state: { service: FixtureComputerUse; fixture: FixtureSession; ledger: string } | undefined;
   const gate = new ControlGate(() => NativeController.start(repositoryRoot));
   let disposed = false;
@@ -137,4 +138,5 @@ export function registerFixtureTools(ctx: Context, repositoryRoot: string, optio
     },
   };
   installScopeLifecycle(ctx, lifecycle, 'cu.fixtureTools');
+  return () => (disposed ? 'disabled' : gate.stopped ? 'stopped' : 'ready');
 }

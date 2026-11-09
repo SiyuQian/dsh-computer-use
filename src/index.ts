@@ -22,6 +22,7 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export function apply(ctx: Context, rawConfig?: unknown): void {
   const config = Config.parse(rawConfig ?? {});
   const fixture = config.fixtureControl;
+  let controlState: () => 'ready' | 'stopped' | 'disabled' = () => 'disabled';
   const status: ToolDefinition = {
     name: 'cu_status',
     description: fixture
@@ -37,6 +38,7 @@ export function apply(ctx: Context, rawConfig?: unknown): void {
           privateData: { type: 'boolean', const: false },
           mode: { type: 'string', const: 'background' },
           platform: { type: 'string', enum: ['macos', 'unsupported'] },
+          control: { type: 'string', enum: ['ready', 'stopped', 'disabled'] },
         },
         required: ['stage', 'nativeControl', 'privateData', 'mode', 'platform'],
         additionalProperties: false,
@@ -50,9 +52,10 @@ export function apply(ctx: Context, rawConfig?: unknown): void {
       return {
         stage: enabled ? 'fixture' : 'foundation', nativeControl: enabled ? 'fixture_only' : false, privateData: false,
         mode: 'background', platform: process.platform === 'darwin' ? 'macos' : 'unsupported',
+        ...(enabled ? { control: controlState() } : {}),
       };
     },
   };
   ctx.tools.register(status);
-  if (fixture && process.platform === 'darwin') registerFixtureTools(ctx, repositoryRoot, { visible: config.showFixture });
+  if (fixture && process.platform === 'darwin') controlState = registerFixtureTools(ctx, repositoryRoot, { visible: config.showFixture });
 }
