@@ -26,7 +26,7 @@
 - host-only签名短期actionId、私有HMAC proposal与append/fsync账本；pending崩溃只读恢复unknown、旧id不重放，所有结果不可dispatch。仅临时目录disk/kill/fault验收，非生产exactly-once。见 [账本切片](<docs/design-docs/action-ledger.md>)。
 - host-only保守回执内核：区分未派发/可能派发/ACK事实，取消或回读失败不抹掉已执行事实，未有证据不报verified。新增内部固定policy/queue结果→not_executed终态接线，scope/stop/unload先seal后abort，迟到结果不改首terminal；无runtime ACK/target/dispatch入口，不认证native事实、ledger或业务。见 [阶段回执](<docs/design-docs/action-receipts.md>)。
 - 默认关闭的host-only [内存artifact暂存](<docs/design-docs/ephemeral-artifacts.md>)：逐stage/publish/read授权、exact scope、单次ticket、字节容量/TTL、撤销覆盖自有副本；已内部接read runtime的live观察target/readgrant+独立policy和Session/Agent/cwd/unload清理；仅公开合成字节，无capture/磁盘/URL/截图或verified声明，不在生产入口激活。
-- 自有AppKit fixture与只读helper：health preflight、严格fixture身份与AX reader/安全投影。拒绝路径已验，AX成功路径因权限缺失未验收，不对模型开放。新增控件生命周期标记与只读revalidate协议/拒绝验收，内部已接私有handle映射/受read grant约束的重验service，公开exact不可执行、无模型动作工具。详见 [通信设计](<docs/design-docs/native-transport.md>)、[观察边界](<docs/design-docs/fixture-observation.md>)、[重验切片](<docs/design-docs/fixture-revalidation.md>)。
+- 自有AppKit fixture与只读helper：health preflight、严格fixture身份与AX reader/安全投影。拒绝路径与真实AX成功路径均已在自有fixture验证（TCC由用户手动授予）。另有控件生命周期标记与只读revalidate协议，内部私有handle映射/受read grant约束的重验service，公开exact不可执行。模型动作只经 `fixtureControl` 下的 `cu_act`，见上文启用说明与 [架构](<ARCHITECTURE.md>)。详见 [通信设计](<docs/design-docs/native-transport.md>)、[观察边界](<docs/design-docs/fixture-observation.md>)、[重验切片](<docs/design-docs/fixture-revalidation.md>)。
 
 本地helper每次read启动前还会核对固定源码/构建脚本、manifest、binary摘要和Mach-O；陈旧/不一致返回ARTIFACT_INVALID，须明确重建，不自动修复。仅开发一致性，不是签名或发布认证，见 [产物gate](<docs/design-docs/helper-artifacts.md>)。
 
@@ -48,7 +48,7 @@ pnpm run check:invariants
 pnpm run check:package
 ```
 
-测试包含构建产物入口smoke，所以先build。默认suite只验证hidden fixture/拒绝路径，不等于AX成功。另有`pnpm run test:native-observation`：权限缺失exit3/NOT_RUN，不弹权限、不静默skip。这里只运行本地开发检查，不安装到用户Profile。
+测试包含构建产物入口smoke，所以先build。默认suite只验证hidden fixture/拒绝路径，不等于AX成功。真实AX lane为`pnpm run test:native-observation`、`test:native-action`、`test:native-e2e`：权限缺失exit3/NOT_RUN，不弹权限、不静默skip。这里只运行本地开发检查，不安装到用户Profile。
 
 若使用宿主返回的受签名 Node，macOS Library Validation 可能拒绝 npm native bundler。不要改签名或关闭系统保护。使用本包已固定的官方 WASM bundler：
 

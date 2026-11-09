@@ -1,12 +1,17 @@
 # Architecture
 
-状态：2026-11-09（Pacific/Auckland），foundation、fixture、只读transport与fixture-only AX reader/投影/私有handle重验service已有代码。真实 AX 成功路径因权限缺失未验收；native control 未实现。
+状态：2026-11-09（Pacific/Auckland），HEAD `0d78bb1`（PR #1–#11 已合入 main）。foundation、只读transport/观察/重验之外，已有仅限自有 AppKit fixture 的语义动作闭环（observe→press/set_value→保守回执→独立停止）。真实 AX 下 `test:native-observation`/`test:native-action`/`test:native-e2e` 已实跑（TCC 由用户手动授予，见 [总计划](<docs/exec-plans/active/2026-11-08-computer-use-mvp.md>) CU-012a2/CU-015c）；未在真实 DSH Profile、模型或 Web GUI 中运行。键盘、pointer、真实应用仍关闭。
 
 ## 当前模块与依赖
 
 | 模块 | 实际入口 | 职责与允许依赖 |
 |---|---|---|
-| plugin | [src/index.ts](<src/index.ts>) | 只注册 `cu_status`；依赖 Cordis/tools 与严格空参数校验；没有原生能力 |
+| plugin | [src/index.ts](<src/index.ts>) | 默认只注册 `cu_status`；host 配置 `fixtureControl=true`（默认false、strict Config）且 darwin 时再经 fixture tools 注册控制工具；模型无法打开该开关 |
+| fixture model tools | [fixture-tools.ts](<src/host-adapter/fixture-tools.ts>) | `cu_observe`/`cu_act`/`cu_stop`；参数无 pid/bundle/script/risk/approved，host 服务懒解析，缺失失败关闭；审批走公开 DSH approval service |
+| fixture computer use | [fixture-computer-use.ts](<src/service/fixture-computer-use.ts>) | 组合 host bind→静态 fixture read grant→观察→lease/风险→需要时真实批准→controller槽→ledger `dispatch_pending`→helper 最后重验+单次dispatch→保守receipt；不重试，unknown 保留 |
+| native action | [act.ts](<src/backend/macos/act.ts>)、[FixtureAction.swift](<native/Helper/FixtureAction.swift>) | 封闭 `act_fixture`：同一 exact 重验元素、dispatch前最后复检、单次 AXPress/AXValue；spawn后失败为 EXECUTION_UNKNOWN |
+| fixture session | [fixture-session.ts](<src/backend/macos/fixture-session.ts>) | 启动并拥有一个自有 fixture 副本（可选可见、不激活），0700 临时状态目录关闭时删除 |
+| per-user controller / sticky stop | [controller.ts](<src/backend/macos/controller.ts>)、[Controller](<native/Controller/main.swift>)、[control-gate.ts](<src/host-adapter/control-gate.ts>) | controller 持锁与 stop-only listener、不输入；启动前源码/binary 本地一致性检查；host gate 记住 stop，即使 controller 未启动或已退出 |
 | contracts | [src/contracts/index.ts](<src/contracts/index.ts>) | 严格 Zod 请求、Observation、TaskLease、Receipt、health envelope；只依赖 zod 和本域 |
 | host-adapter | [src/host-adapter/context.ts](<src/host-adapter/context.ts>) | 精确 live Agent/Session、open turn、workingDirectory 绑定；尚未接入原生动作 |
 | boundary sensor | [scripts/check-invariants.mjs](<scripts/check-invariants.mjs>) | AST 检查合同静态/动态/require 导入不得越界；不是恶意代码沙箱 |
@@ -14,10 +19,10 @@
 | tests | [tests/unit/](<tests/unit/>)、[tests/profile/](<tests/profile/>) | 独立合同、边界和 host seam；真实 SDK registry/pipeline 生命周期 |
 | fixed developer verification | [verify-foundation.mjs](<scripts/verify-foundation.mjs>)、[summary](<scripts/verification/report.mjs>)、[snapshot](<scripts/verification/source-snapshot.mjs>) | 固定argv/cwd，8步真实退出码/test分母与前后限定源码/HEAD；默认不native、缺权限显式NOT_RUN、始终NO_GO，不认证完整输入闭包/签名/MVP |
 | AppKit fixture | [native/Fixture/](<native/Fixture/>)、[fixture tests](<tests/fixture/fixture.test.ts>) | 自有双窗口、独立 public state、hidden self-test；不注入系统输入 |
-| native read | [transport.ts](<src/backend/macos/transport.ts>)、[Helper](<native/Helper/main.swift>) | 固定binary、封闭health/observe_fixture/revalidate_fixture、bounded frame/cleanup；不接模型工具 |
+| native read | [transport.ts](<src/backend/macos/transport.ts>)、[Helper](<native/Helper/main.swift>) | 固定binary、封闭health/observe_fixture/revalidate_fixture/act_fixture、bounded frame/cleanup；仅经 fixture service 接模型工具 |
 | helper artifact admission | [helper-artifact.ts](<src/backend/macos/helper-artifact.ts>)、[builder](<scripts/build-helper.mjs>) | fixed local源码/recipe/manifest/binary/Mach-O一致性、有界FD/路径witness；每次read前复检，不认证publisher或原子exec |
-| observation projection | [project.ts](<src/observation/project.ts>)、[fixture reader](<native/Helper/FixtureObservation.swift>) | 精确fixture process/window witness、secure正向值allowlist、有限公共投影；缺TCC成功路径未验 |
-| read-only revalidation | [revalidate.ts](<src/backend/macos/revalidate.ts>)、[Swift adapter](<native/Helper/FixtureRevalidation.swift>) | fixture element lifecycle witness/有界完整扫描/closed exact响应不可dispatch；AX成功未验 |
+| observation projection | [project.ts](<src/observation/project.ts>)、[fixture reader](<native/Helper/FixtureObservation.swift>) | 精确fixture process/window witness、secure正向值allowlist、有限公共投影；真实AX成功仅在自有fixture验证 |
+| read-only revalidation | [revalidate.ts](<src/backend/macos/revalidate.ts>)、[Swift adapter](<native/Helper/FixtureRevalidation.swift>) | fixture element lifecycle witness/有界完整扫描/closed exact响应不可dispatch；真实AX exact 由 native-observation lane 覆盖，rebind 未实现 |
 | observation lifetime | [store.ts](<src/observation/store.ts>) | 纯host有界内存、opaque read ticket、monotonic TTL、exact lifetime scope、私有fixture witness；gate后重验，候选不dispatch |
 | observation action intents | [fixture-action-intents.ts](<src/service/fixture-action-intents.ts>) | readruntime私有HMAC/单次objectticket；live观察成员/private witness+readgrant派生target/material、原mono TTL与turn/epoch复检；不持输入、不签control/批准/native许可 |
 | read policy | [read-authority.ts](<src/policy/read-authority.ts>) | host-only exact fixture读grant，默认拒绝、短期TTL/撤销，不签发control |
@@ -40,7 +45,7 @@
 
 ## 尚未实现的域
 
-Observation真实AX→private handle重验成功与rebind、真实consent/TaskLease/批准组合、生产broker/用户stop入口、Evidence verifier、通用macOS observe/mutate helper和client UI仍是 [实施设计](<docs/design-docs/plugin-design.md>)。现有policy/approval/队列只是inert host内核；flock只在test namespace运行，尚未组合production控制授权。host action ledger已有独立disk/kill切片但未接生产执行事务；没有native输入，不对模型暴露动作工具。
+rebind、live consent/配置UI、生产broker与已安装的用户stop入口、可信回读/effect verifier、截图与磁盘artifact、通用macOS observe/mutate helper、键盘/pointer、DSH Web GUI 停止/状态面板仍是 [实施设计](<docs/design-docs/plugin-design.md>)。上表中标为 inert/内部 runtime 的模块（read/control runtime、approval binding、queue、evaluation receipts、ephemeral artifacts）是独立切片，fixture 闭环使用 [FixtureComputerUse](<src/service/fixture-computer-use.ts>) 自身的组合，不能把它们视为已全部接入生产路径。fixture 闭环只在测试脚本中实跑，未在真实 Profile/模型中运行；receipt 的 effect 仍为 unverified。
 
 `parseTaskLease` 只检验形状与内部时限，不证明来源或授权。`parseReceipt` 只拒绝自相矛盾的声明，不认证 evidenceId 真伪。后续服务必须解析可信 store，不能把校验成功直接当能力。
 
@@ -48,11 +53,12 @@ Observation真实AX→private handle重验成功与rebind、真实consent/TaskLe
 
 | ID | 不变量 | 真实传感器 | 边界 |
 |---|---|---|---|
-| D-01 | 状态工具不暴露原生控制 | profile 与 built-entry smoke | 只验证当前入口，未来新增工具须增测试 |
-| D-02 | 模型不能注入身份/批准/脚本字段 | strict contracts + [合同测试](<tests/unit/contracts.test.ts>) | 尚未接 native，不能声明越权输入测试通过 |
+| D-01 | 默认只有状态工具；控制工具仅在 host 配置 `fixtureControl` 下注册且只针对自有fixture | [plugin](<tests/profile/plugin.test.ts>)、[tools profile](<tests/profile/computer-use-tools.test.ts>) 与 built-entry smoke | 新增工具或目标须增测试 |
+| D-02 | 模型不能注入身份/批准/脚本字段 | strict contracts + [合同测试](<tests/unit/contracts.test.ts>)、[tools profile](<tests/profile/computer-use-tools.test.ts>) | 只覆盖 fixture 工具参数，不是通用越权输入验收 |
 | D-03 | Host 绑定必须匹配 exact live object | [上下文测试](<tests/unit/host-context.test.ts>) | 借用 host registry 接口，身份不是许可 |
 | D-04 | 合同不依赖宿主或执行能力 | `check:invariants` + [传感器测试](<tests/unit/invariants.test.ts>) | AST guard 不是安全沙箱 |
-| D-05 | unknown 不可变成 safe-to-retry 未执行 | receipt schema + A-12/13 子断言 | 尚无 native 回执生成实现 |
+| D-05 | unknown 不可变成 safe-to-retry 未执行 | receipt schema + A-12/13 子断言、[fixture service](<tests/unit/fixture-computer-use.test.ts>) | fixture 路径不重试；无可信 effect verifier |
+| D-10 | 原生动作只在 lease/批准/controller槽/`dispatch_pending` 之后，且 stop 为 sticky | [fixture service](<tests/unit/fixture-computer-use.test.ts>)、[control gate](<tests/unit/control-gate.test.ts>)、`test:native-e2e`（需TCC，缺权限exit3/NOT_RUN） | 仅自有fixture；不是生产 broker 或 GUI 停止 |
 | D-06 | 文档必须可发现且链接有效 | installed project-docs checker | 不验证语义真实性 |
 | D-07 | native health只支持有界健康查询，无重试 | [transport tests](<tests/transport/helper.test.ts>) | fixture读取另有strict目标，无产品UI入口，不认证同用户恶意程序 |
 | D-09 | 本地helper源码或产物变化不得跳过一致性gate直接启动 | [artifact](<tests/transport/helper-artifact.test.ts>)、[build race](<tests/transport/helper-build.test.ts>) | 开发一致性，非签名/原子exec/同UID隔离 |

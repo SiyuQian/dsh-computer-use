@@ -2,6 +2,8 @@
 
 状态：2026-11-08。CU-006 in_progress。严格读取协议、投影、真实进程身份拒绝、无权限拒绝有执行证据；辅助功能权限缺失，不能把 native AX 成功路径列为通过。
 
+> 2026-11-09 更新：真实AX下 `test:native-observation`、`test:native-action`、`test:native-e2e` 已在自有fixture实跑（TCC由用户手动授予，见 [总计划](<../exec-plans/active/2026-11-08-computer-use-mvp.md>) CU-012a2/CU-015c）。下文中“缺AX权限/NOT_RUN”的描述是当时记录；缺权限时 lane 仍 exit3/NOT_RUN。
+
 ## 当前实际路径
 
 内部 [observe 客户端](<../../src/backend/macos/observe.ts>) → [共享受管 transport](<../../src/backend/macos/transport.ts>) → [fixture AX reader](<../../native/Helper/FixtureObservation.swift>) → [raw snapshot schema](<../../src/contracts/fixture-observation.ts>) → [public projection](<../../src/observation/project.ts>)。

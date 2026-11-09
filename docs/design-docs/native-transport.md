@@ -2,6 +2,8 @@
 
 状态：CU-005 的 health/transport 子集已实现并验证。CU-006已加入fixture-only读取协议/reader，但成功AX路径未验收；见 [观察设计](<fixture-observation.md>)。没有read授权签发器或输入能力。
 
+> 2026-11-09 更新：真实AX下 `test:native-observation`、`test:native-action`、`test:native-e2e` 已在自有fixture实跑（TCC由用户手动授予，见 [总计划](<../exec-plans/active/2026-11-08-computer-use-mvp.md>) CU-012a2/CU-015c）。下文中“缺AX权限/NOT_RUN”的描述是当时记录；缺权限时 lane 仍 exit3/NOT_RUN。
+
 ## 已实现路径
 
 [health 客户端](<../../src/backend/macos/health.ts>) → `ctx.subprocess.spawn` → 固定 app-owned binary → inherited fd 7 launch frame → 有界 stdin health request → 单帧 stdout → strict schema/ID 匹配 → managed range 退出。

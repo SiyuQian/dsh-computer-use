@@ -1,6 +1,6 @@
 # Security：计划边界与控制缺口
 
-状态：对模型仍只注册状态工具。内部新增fixture-only只读reader与投影，精确身份/权限拒绝有测试，真实AX成功路径缺TCC未验收。strict schema、live host binding与receipt一致性有测试；已有inert policy/coordination与临时namespace真实锁原语，生产组合仍是实施要求。见 [观察边界](<design-docs/fixture-observation.md>)。
+状态：2026-11-09。默认只注册状态工具；host配置 `fixtureControl=true` 后才注册 `cu_observe`/`cu_act`/`cu_stop`，且只能对自有AppKit fixture做单次 press/set_value（无键盘、pointer、真实应用）。动作在 lease/风险、需要时真实DSH批准（never/unavailable拒绝）、per-user controller槽与 ledger `dispatch_pending` 之后执行，stop为sticky。真实AX的 `test:native-observation`/`test:native-action`/`test:native-e2e` 已在自有fixture实跑（用户手动授予TCC），未在真实Profile/模型中运行。下文各段描述的inert内核是独立切片，不都已接入该闭环。见 [架构](<../ARCHITECTURE.md>)、[观察边界](<design-docs/fixture-observation.md>)。
 
 ## 保护对象
 
