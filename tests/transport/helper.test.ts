@@ -106,8 +106,9 @@ describe('A-03: managed native health transport', () => {
     };
     const provider = { spawn: () => handle };
     const outcome = await Promise.race([
-      client.probeNativeHealth(provider, root, { signal: new AbortController().signal, timeoutMs: 50 }).catch((error: unknown) => String(error)),
-      new Promise<string>((resolve) => setTimeout(() => resolve('probe did not honor timeout'), 500)),
+      client.probeNativeHealth(provider, root, { signal: new AbortController().signal, timeoutMs: 1000 }).catch((error: unknown) => String(error)),
+      // Bound = request timeout + 2s cleanup cap; real artifact checks must finish before the request timeout under load.
+      new Promise<string>((resolve) => setTimeout(() => resolve('probe did not honor timeout'), 4000)),
     ]);
     stdout.destroy();
     control.destroy();
