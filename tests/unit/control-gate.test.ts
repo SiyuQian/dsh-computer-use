@@ -44,3 +44,20 @@ describe('review P1: host-side sticky stop independent of controller process lif
     expect(second.begins()).toBe(1);
   });
 });
+
+describe('review #5: status reflects an independent stop', () => {
+  it('reports stopped after the live controller is revoked outside the host (CUController --stop)', async () => {
+    const first = fakeController();
+    const gate = new ControlGate(async () => first.controller);
+    const slot = await gate.begin(); await slot.end();
+    expect(gate.stopped).toBe(false);
+    first.controller.revokeFromHost(); // Same observable effect as the native controller announcing "revoked".
+    expect(gate.stopped).toBe(true);
+  });
+
+  it('stays ready when a started controller was not revoked', async () => {
+    const gate = new ControlGate(async () => fakeController().controller);
+    await (await gate.begin()).end();
+    expect(gate.stopped).toBe(false);
+  });
+});

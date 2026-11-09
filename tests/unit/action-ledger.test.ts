@@ -345,3 +345,44 @@ describe('CU-011a: inert durable action binding and conservative replay rejectio
     } else await expect(module.DurableActionLedger.create({ directory: path })).rejects.toThrow('LEDGER_UNAVAILABLE');
   });
 });
+
+describe('review #2: ledger lifetime capacity is reported before dispatch and never loses a terminal fact', () => {
+  it('reports no capacity once the record bound is reached, without poisoning the writer', async () => {
+    const ledger = await module.DurableActionLedger.create({ directory: await directory(), maxActions: 1 });
+    const context = host();
+    try {
+      expect(ledger.hasCapacityFromHost()).toBe(true);
+      const prepared = await ledger.prepareFromHost(context, proposal());
+      expect(ledger.hasCapacityFromHost()).toBe(false);
+      await ledger.beginDispatchFromHost(context, prepared.actionId, proposal());
+      expect(await ledger.finishFromHost(context, prepared.actionId, completed)).toMatchObject({ state: 'terminal' });
+    } finally { await ledger.close(); }
+  });
+
+  it('reserves journal room for a whole action so a terminal record is never refused by the sequence bound', async () => {
+    const ledger = await module.DurableActionLedger.create({ directory: await directory(), maxActions: 256 });
+    const context = host();
+    try {
+      let completedActions = 0;
+      while (ledger.hasCapacityFromHost()) {
+        const prepared = await ledger.prepareFromHost(context, proposal());
+        await ledger.beginDispatchFromHost(context, prepared.actionId, proposal());
+        await ledger.finishFromHost(context, prepared.actionId, completed);
+        completedActions += 1;
+      }
+      expect(completedActions).toBe(256);
+      await expect(ledger.prepareFromHost(context, proposal())).rejects.toThrow('LEDGER_CAPACITY');
+      expect(ledger.hasCapacityFromHost()).toBe(false);
+    } finally { await ledger.close(); }
+  }, 60_000);
+
+  it('reports no capacity after the writer is poisoned', async () => {
+    const path = await directory();
+    const ledger = await module.DurableActionLedger.create({ directory: path });
+    try {
+      await rm(join(path, 'actions.journal')); // Intentional fault on the exact file owned by this test.
+      await expect(ledger.prepareFromHost(host(), proposal())).rejects.toThrow('LEDGER_UNAVAILABLE');
+      expect(ledger.hasCapacityFromHost()).toBe(false);
+    } finally { await ledger.close().catch(() => {}); }
+  });
+});

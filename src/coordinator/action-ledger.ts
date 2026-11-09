@@ -20,9 +20,12 @@ const summarySchema = z.strictObject({
 }).refine((summary) => summary.execution !== 'unknown' || summary.effect === 'unknown');
 type Summary = z.infer<typeof summarySchema>;
 type Proposal = z.infer<typeof proposalSchema>;
+/** Hard journal bound; each action needs prepared, dispatch_pending and terminal events. */
+const maxJournalEvents = 768;
+const eventsPerAction = 3;
 const hex = z.string().regex(/^[0-9a-f]{64}$/);
 const eventSchema = z.strictObject({
-  version: z.literal(1), seq: z.number().int().positive().max(768), previous: hex, actionId: opaqueId,
+  version: z.literal(1), seq: z.number().int().positive().max(maxJournalEvents), previous: hex, actionId: opaqueId,
   owner: hex, fingerprint: hex, expiresAt: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   state: z.enum(['prepared', 'dispatch_pending', 'terminal']), summary: summarySchema.optional(), hash: hex,
 });
@@ -118,7 +121,7 @@ export class DurableActionLedger {
       this.#requireOpen();
       const { mono, wall } = this.#now();
       if (context.signal.aborted) throw fail('ACTION_UNAVAILABLE');
-      if (this.#records.size >= this.#maxActions) throw fail('LEDGER_CAPACITY');
+      if (!this.#hasRoom()) throw fail('LEDGER_CAPACITY');
       const owner = this.#owner(scope);
       const expiresAt = wall + this.#ttl;
       const actionId = this.#sign(owner, expiresAt);
@@ -161,6 +164,14 @@ export class DurableActionLedger {
     });
   }
 
+  /**
+   * Whether a new action can be fully recorded (prepare, dispatch_pending and terminal). Terminal records are kept as
+   * replay tombstones, so a full ledger must be replaced by the host, never pruned.
+   */
+  hasCapacityFromHost(): boolean {
+    return !this.#closing && !this.#closed && !this.#poisoned && this.#hasRoom();
+  }
+
   close(): Promise<void> {
     if (this.#closePromise) return this.#closePromise;
     this.#closing = true;
@@ -181,6 +192,7 @@ export class DurableActionLedger {
     this.#tail = next.catch(() => {});
     return next;
   }
+  #hasRoom(): boolean { return this.#records.size < this.#maxActions && this.#sequence + eventsPerAction <= maxJournalEvents; }
   #requireOpen(): void { if (this.#closing || this.#closed || this.#poisoned) throw fail(); }
   #now(): { mono: number; wall: number } {
     let mono: number; let wall: number;
@@ -246,7 +258,7 @@ export class DurableActionLedger {
       };
       const hash = eventHash(base);
       const bytes = Buffer.from(`${JSON.stringify({ ...base, hash })}\n`);
-      if (this.#bytes + bytes.length > maxJournalBytes || this.#sequence >= 768) throw fail('LEDGER_CAPACITY');
+      if (this.#bytes + bytes.length > maxJournalBytes || this.#sequence >= maxJournalEvents) throw fail('LEDGER_CAPACITY');
       let offset = 0;
       while (offset < bytes.length) {
         const written = await this.file.write(bytes, offset, bytes.length - offset, null);

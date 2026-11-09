@@ -17,6 +17,18 @@ function failure(code: Failure): NativeTransportError {
   return new NativeTransportError(code);
 }
 
+const sortKeys = (_key: string, value: unknown) => value && typeof value === 'object' && !Array.isArray(value)
+  ? Object.fromEntries(Object.entries(value).sort(([first], [second]) => first < second ? -1 : first > second ? 1 : 0)) : value;
+
+/**
+ * Encode exactly as Foundation JSONSerialization(.sortedKeys) re-encodes it, because the helper compares bytes for the
+ * canonical commands. Foundation escapes "/" as "\/"; "/" only occurs inside JSON strings, so a global replace is exact.
+ */
+export function encodeNativeFrame(request: NativeRequest): string {
+  if (request.command !== 'revalidate_fixture' && request.command !== 'act_fixture') return JSON.stringify(request);
+  return JSON.stringify(request, sortKeys).replaceAll('/', '\\/');
+}
+
 /** Run one closed request against the fixed app-owned helper. Not a model tool. Mutation failures after spawn are EXECUTION_UNKNOWN. */
 export async function runNativeRead<T extends { requestId: string; launchId: string }>(
   provider: Pick<SubprocessRuntime, 'spawn'>,
@@ -71,8 +83,7 @@ export async function runNativeRead<T extends { requestId: string; launchId: str
     handle = provider.spawn({
       argv: [executable, '--managed-stdio'],
       cwd: repositoryRoot,
-      stdio: { stdin: { data: `${JSON.stringify(request, request.command === 'revalidate_fixture' || request.command === 'act_fixture' ? (_key, value: unknown) =>
-        value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).sort(([first], [second]) => first < second ? -1 : first > second ? 1 : 0)) : value : undefined)}\n` }, stdout: 'pipe', stderr: { maxBytes: 256 }, control: 'pipe' },
+      stdio: { stdin: { data: `${encodeNativeFrame(request)}\n` }, stdout: 'pipe', stderr: { maxBytes: 256 }, control: 'pipe' },
       graceMs: 100,
       signal: lifecycle.signal,
     });

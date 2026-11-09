@@ -145,6 +145,45 @@ describe('CU-015: fixture-only vertical composition with injected native seams',
     } finally { Object.defineProperty(performance, 'now', { configurable: true, value: realNow }); }
   });
 
+  it('review #2: keeps acting past one ledger\'s capacity by rotating to a fresh journal', async () => {
+    const f = await boot();
+    const observation = await f.service.observe(f.exec, {});
+    for (let index = 0; index < 70; index += 1) {
+      const result = await f.service.act(f.exec, { observationId: observation.observationId, action: { kind: 'press', targetHandle: handle(observation, 'Submit test value') } });
+      expect(result.receipt.execution, `action ${index}`).toBe('completed');
+    }
+    expect(f.calls.act).toBe(70);
+  });
+
+  it('review #2: returns a not_executed receipt without dispatch when the ledger cannot be opened', async () => {
+    const f = await boot();
+    const observation = await f.service.observe(f.exec, {});
+    await chmod(dirs.at(-1)!, 0o500); // Test-owned directory: no journal can be created.
+    try {
+      const result = await f.service.act(f.exec, { observationId: observation.observationId, action: { kind: 'press', targetHandle: handle(observation, 'Submit test value') } });
+      expect(result.receipt).toMatchObject({ execution: 'not_executed', error: { code: 'CAPABILITY_UNAVAILABLE', phase: 'lock', retry: 'never' } });
+      expect(f.calls).toMatchObject({ act: 0, ends: 1 });
+    } finally { await chmod(dirs.at(-1)!, 0o700); }
+  });
+
+  it.each([
+    ['within the 60 s approval window', 59_000, 'completed'],
+    ['after the lease ends', 200_000, 'not_executed'],
+  ] as const)('review #3: an approval answered %s returns a receipt instead of throwing', async (_name, delay, execution) => {
+    const realNow = performance.now.bind(performance); let offset = 0;
+    const f = await boot({ requestApproval: async () => { offset = delay; return 'allowed-once'; } });
+    const observation = await f.service.observe(f.exec, {});
+    Object.defineProperty(performance, 'now', { configurable: true, value: () => realNow() + offset });
+    try {
+      const result = await f.service.act(f.exec, { observationId: observation.observationId, action: { kind: 'press', targetHandle: handle(observation, 'Save test copy') } });
+      expect(result.receipt.execution).toBe(execution);
+      if (execution === 'not_executed') {
+        expect(result.receipt.error).toMatchObject({ code: 'APPROVAL_INVALIDATED', phase: 'approve', retry: 'observe_first' });
+        expect(f.calls).toMatchObject({ act: 0, begins: 0 });
+      } else expect(f.calls.act).toBe(1);
+    } finally { Object.defineProperty(performance, 'now', { configurable: true, value: realNow }); }
+  });
+
   it('uses the caller scope grant, so a second agent observing the same window can act', async () => {
     const f = await boot();
     const sessionB = f.ctx.sessions.prepare(SessionId('session_other')); f.ctx.sessions.enter(sessionB); f.ctx.sessions.announce(sessionB);
