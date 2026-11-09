@@ -7,7 +7,7 @@
 | 模块 | 实际入口 | 职责与允许依赖 |
 |---|---|---|
 | plugin | [src/index.ts](<src/index.ts>) | 默认只注册 `cu_status`；host 配置 `fixtureControl=true`（默认false、strict Config）且 darwin 时再经 fixture tools 注册控制工具；模型无法打开该开关 |
-| fixture model tools | [fixture-tools.ts](<src/host-adapter/fixture-tools.ts>) | `cu_observe`/`cu_act`/`cu_stop`；参数无 pid/bundle/script/risk/approved，host 服务懒解析，缺失失败关闭；审批走公开 DSH approval service |
+| fixture model tools | [fixture-tools.ts](<src/host-adapter/fixture-tools.ts>) | `cu_observe`/`cu_act`/`cu_stop`；参数无 pid/bundle/script/risk/approved。工具注册在声明了 agents/sessions/workingDirectory/subprocess 的嵌套 Cordis scope 中，这些服务都可用时才存在，任一服务卸载即移除；停止 gate 属于插件 scope，服务重载不解除 stop。审批经 `ctx.get('approval')` 可选读取，缺失或 policy=never 时拒绝 |
 | fixture computer use | [fixture-computer-use.ts](<src/service/fixture-computer-use.ts>) | 组合 host bind→静态 fixture read grant→观察→lease/风险→需要时真实批准→controller槽→ledger `dispatch_pending`→helper 最后重验+单次dispatch→保守receipt；不重试，unknown 保留 |
 | native action | [act.ts](<src/backend/macos/act.ts>)、[FixtureAction.swift](<native/Helper/FixtureAction.swift>) | 封闭 `act_fixture`：同一 exact 重验元素、dispatch前最后复检、单次 AXPress/AXValue；spawn后失败为 EXECUTION_UNKNOWN |
 | fixture session | [fixture-session.ts](<src/backend/macos/fixture-session.ts>) | 启动并拥有一个自有 fixture 副本（可选可见、不激活），0700 临时状态目录关闭时删除 |

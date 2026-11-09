@@ -22,15 +22,54 @@ const json = (value: unknown) => [{ type: 'text' as const, text: JSON.stringify(
 const looseObject = { type: 'object' } as const;
 
 /**
- * Register the fixture-only model tools. Services (agents, sessions, workingDirectory, subprocess) are resolved lazily
- * from the host context at call time; a missing service fails closed. Approval uses the public DSH approval service.
+ * Ask the host approval service once. Approval is optional, so it is read with ctx.get instead of a required inject.
+ * Refuses when the service is absent, the policy is never, or the call has no agent.
  */
-/** Returns a host-side control-state reader for cu_status. */
-export function registerFixtureTools(ctx: Context, repositoryRoot: string, options: { visible: boolean }): () => 'ready' | 'stopped' | 'disabled' {
+export async function requestFixtureApproval(ctx: Context, exec: Pick<ToolRunContext, 'agent' | 'callId' | 'signal'>, summary: ApprovalSummary) {
+  const approval = ctx.get('approval') as Pick<ApprovalService, 'config' | 'overrideOf' | 'request'> | undefined;
+  const agent = exec.agent;
+  if (!approval || !agent || exec.signal.aborted) return 'unavailable' as const;
+  if ((approval.overrideOf(agent.session) ?? approval.config.policy ?? 'ask') === 'never') return 'unavailable' as const;
+  const outcome = await approval.request({ agent, toolName: 'cu_act', callId: exec.callId,
+    reason: `Computer use on the owned test fixture: ${summary.operation} ${summary.identifier} (${summary.windowKey} window); input length ${summary.inputLength}; risk ${summary.riskReason}. Input text is omitted.`,
+    signal: AbortSignal.any([exec.signal, AbortSignal.timeout(fixtureApprovalTimeoutMs)]) });
+  return outcome === 'allowed-once' || outcome === 'rejected' || outcome === 'cancelled' ? outcome : 'unavailable' as const;
+}
+
+/** Host services the fixture tools read at call time. Cordis lets a plugin scope read only the services it declares. */
+export const fixtureToolServices = ['agents', 'sessions', 'workingDirectory', 'subprocess'] as const;
+
+/**
+ * Install the fixture-only model tools in a nested scope that declares the host services they read. The tools exist
+ * only while every service is available, and they are removed when a service unloads. The gate belongs to the plugin
+ * scope, so a stop stays sticky until the plugin itself reloads. Returns a host-side control-state reader for cu_status.
+ */
+export function installFixtureTools(ctx: Context, repositoryRoot: string, options: { visible: boolean }): () => 'ready' | 'stopped' | 'disabled' {
+  const gate = new ControlGate(() => NativeController.start(repositoryRoot));
+  let active = false;
+  ctx.effect(() => () => { void gate.close(); }, 'cu.fixtureControlGate');
+  ctx.inject([...fixtureToolServices], (scope) => {
+    registerFixtureTools(scope, repositoryRoot, options, gate);
+    active = true;
+    scope.effect(() => () => { active = false; }, 'cu.fixtureToolsActive');
+  });
+  return () => (gate.stopped ? 'stopped' : active ? 'ready' : 'disabled');
+}
+
+/**
+ * Register the fixture-only model tools in a scope that already declares {@link fixtureToolServices}. The services are
+ * resolved lazily at call time; a missing service fails closed. Approval uses the optional public DSH approval service.
+ * A supplied gate is shared and owned by the caller; otherwise this scope owns a new one.
+ * Returns a host-side control-state reader for cu_status.
+ */
+export function registerFixtureTools(ctx: Context, repositoryRoot: string, options: { visible: boolean },
+  sharedGate?: ControlGate): () => 'ready' | 'stopped' | 'disabled' {
   let state: { service: FixtureComputerUse; fixture: FixtureSession; ledger: string } | undefined;
   /** Single-flight first initialization: concurrent first calls must share one runtime, fixture and ledger. */
   let starting: Promise<NonNullable<typeof state>> | undefined;
-  const gate = new ControlGate(() => NativeController.start(repositoryRoot));
+  const gate = sharedGate ?? new ControlGate(() => NativeController.start(repositoryRoot));
+  /** Closing a gate makes its stop sticky, so only the gate owner may close it. */
+  const ownsGate = sharedGate === undefined;
   let disposed = false;
 
   const host = () => {
@@ -38,16 +77,7 @@ export function registerFixtureTools(ctx: Context, repositoryRoot: string, optio
     if (!c.agents || !c.sessions || !c.workingDirectory || !c.subprocess) throw new Error('HOST_CONTEXT_UNAVAILABLE: Computer use requires a live DSH agent host.');
     return ctx as Context;
   };
-  const requestApproval = async (exec: Pick<ToolRunContext, 'agent' | 'callId' | 'signal'>, summary: ApprovalSummary) => {
-    const approval = (ctx as unknown as { approval?: Pick<ApprovalService, 'config' | 'overrideOf' | 'request'> }).approval;
-    const agent = exec.agent;
-    if (!approval || !agent || exec.signal.aborted) return 'unavailable' as const;
-    if ((approval.overrideOf(agent.session) ?? approval.config.policy ?? 'ask') === 'never') return 'unavailable' as const;
-    const outcome = await approval.request({ agent, toolName: 'cu_act', callId: exec.callId,
-      reason: `Computer use on the owned test fixture: ${summary.operation} ${summary.identifier} (${summary.windowKey} window); input length ${summary.inputLength}; risk ${summary.riskReason}. Input text is omitted.`,
-      signal: AbortSignal.any([exec.signal, AbortSignal.timeout(fixtureApprovalTimeoutMs)]) });
-    return outcome === 'allowed-once' || outcome === 'rejected' || outcome === 'cancelled' ? outcome : 'unavailable' as const;
-  };
+  const requestApproval = (exec: Pick<ToolRunContext, 'agent' | 'callId' | 'signal'>, summary: ApprovalSummary) => requestFixtureApproval(ctx, exec, summary);
   const ensure = () => {
     if (disposed) return Promise.reject(new Error('HOST_CONTEXT_UNAVAILABLE: Computer use is disabled.'));
     if (state) return Promise.resolve(state);
@@ -135,7 +165,7 @@ export function registerFixtureTools(ctx: Context, repositoryRoot: string, optio
       disposed = true;
       const current = state; state = undefined;
       current?.service.dispose();
-      void gate.close();
+      if (ownsGate) void gate.close();
       void current?.fixture.close();
       if (current) {
         const ledger = resolve(current.ledger);
