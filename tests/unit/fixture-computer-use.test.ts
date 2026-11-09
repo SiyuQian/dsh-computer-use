@@ -1,3 +1,4 @@
+import { performance } from 'node:perf_hooks';
 import { Context } from '@deepseek-ai/cordis';
 import type { Agent } from '@deepseek-ai/dsh-agent';
 import { SessionStore, SessionId, SessionSeq, type Session } from '@deepseek-ai/dsh-session';
@@ -24,7 +25,7 @@ afterEach(async () => {
   for (const dir of dirs.splice(0)) if (dir.startsWith('/private/tmp/cu-e2e-ledger-')) await rm(dir, { recursive: true });
 });
 
-async function boot(overrides: Partial<Record<string, unknown>> = {}) {
+async function boot(overrides: Partial<Record<string, unknown>> = {}, serviceOptions: Record<string, unknown> = {}) {
   const path = '../../src/service/fixture-computer-use.js';
   const module = await import(path) as Module;
   const ctx = new Context(); roots.push(ctx); await ctx.plugin(SessionStore).inertia;
@@ -42,9 +43,9 @@ async function boot(overrides: Partial<Record<string, unknown>> = {}) {
     requestApproval: async () => { calls.approvals += 1; return 'unavailable' as const; },
     ...overrides,
   };
-  const service = new module.FixtureComputerUse(host, backends as never, { ledgerDirectory });
+  const service = new module.FixtureComputerUse(host, backends as never, { ledgerDirectory, ...serviceOptions });
   const exec = { agent, callId: ToolCallId('call_fixture'), signal: new AbortController().signal };
-  return { service, exec, calls };
+  return { service, exec, calls, ctx, host, agent };
 }
 const handle = (observation: { elements: Array<{ name: string; handle: string }> }, name: string) => observation.elements.find((element) => element.name === name)!.handle;
 
@@ -129,5 +130,30 @@ describe('CU-015: fixture-only vertical composition with injected native seams',
     await expect(f.service.observe(f.exec, {})).rejects.toThrow();
     const result = await f.service.act(f.exec, { observationId: observation.observationId, action: { kind: 'press', targetHandle: handle(observation, 'Submit test value') } });
     expect(result.receipt.execution).toBe('not_executed'); expect(f.calls.act).toBe(0);
+  });
+
+  it('re-grants read access after the cached grant expires instead of failing permanently', async () => {
+    const f = await boot();
+    await f.service.observe(f.exec, {});
+    const realNow = performance.now.bind(performance); let offset = 0;
+    Object.defineProperty(performance, 'now', { configurable: true, value: () => realNow() + offset });
+    try {
+      offset = 601_000; // past the 10 minute static read grant
+      const later = await f.service.observe(f.exec, {});
+      const result = await f.service.act(f.exec, { observationId: later.observationId, action: { kind: 'press', targetHandle: handle(later, 'Submit test value') } });
+      expect(result.receipt.execution).toBe('completed');
+    } finally { Object.defineProperty(performance, 'now', { configurable: true, value: realNow }); }
+  });
+
+  it('uses the caller scope grant, so a second agent observing the same window can act', async () => {
+    const f = await boot();
+    const sessionB = f.ctx.sessions.prepare(SessionId('session_other')); f.ctx.sessions.enter(sessionB); f.ctx.sessions.announce(sessionB);
+    const agentB = { id: sessionB.id, session: sessionB, ctx: f.ctx } as Agent;
+    (f.host as unknown as { agents: { get: (id: string) => Agent } }).agents.get = (id: string) => (id === agentB.id ? agentB : f.agent);
+    const execB = { agent: agentB, callId: ToolCallId('call_other'), signal: new AbortController().signal };
+    await f.service.observe(f.exec, {});
+    const observationB = await f.service.observe(execB, {});
+    const result = await f.service.act(execB, { observationId: observationB.observationId, action: { kind: 'press', targetHandle: handle(observationB, 'Submit test value') } });
+    expect(result.receipt.execution).toBe('completed');
   });
 });

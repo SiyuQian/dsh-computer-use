@@ -423,6 +423,7 @@ P0 release 不要求 G5 的 A-24–26 通过，只要求该能力默认关闭且
 - 2026-11-09（CU-012a1）：helper act_fixture语义动作与TS act客户端；health capability mutation=fixture_semantic_only。Red（缺FixtureAction.swift编译失败）→Green；全量1048tests/50files、typecheck/invariants/package exit0。test:native-action exit3/NOT_RUN（缺AX）。
 - 2026-11-09（CU-010b2b2a）：per-user CUController+TS client，单槽/busy/独立stop/sticky撤销真实进程验证；build:stop同步构建controller。全量1053tests/51files（一次负载下helper-artifact cancel_after_parse偶发失败，单跑3/3、全量2/2通过，记为flaky观察）。
 - 2026-11-09（CU-015a/b）：纵向组合服务+opt-in模型工具；修复helper-artifact探针真实50ms timer与伪mono时钟竞态的flaky（改2000ms，原断言不变），全量3次1071/1071。native-e2e exit3/NOT_RUN。
+- 2026-11-09（独立review修复）：P1 cu_stop在controller未启动/被撤销后死亡时不粘滞→host侧ControlGate粘滞；P1 read grant过期后缓存永久失效→过期重签；P2 跨scope取grant、ledger目录TMPDIR泄漏、controller请求无超时、CUController无一致性gate、5ms忙轮询。新增9测试（Red→Green），全量3次1077/1077。
 - 下一步：CU-006c/CU-007b2b真实AX成功仍缺权限，不以fake identity替代AX验收。可拆host-only来源票与inert控制复检或完成开发基线/验收交接，但不提供native executor/真实consent或dispatch许可；CU-008b2/CU-009b/CU-010b2b2/c/CU-011b/CU-013b/CU-014b/CU-024b native/live/磁盘/分发gate保留。real-app、model与Web UI未运行。
 
 ## Decision log

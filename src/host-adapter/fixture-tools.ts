@@ -6,6 +6,7 @@ import type {} from '@deepseek-ai/dsh-working-directory';
 import type {} from '@deepseek-ai/dsh-subprocess';
 import type { ApprovalService } from '@deepseek-ai/dsh-user-approval';
 import { mkdtemp, rm, chmod, realpath } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { FixtureComputerUse, type ApprovalSummary } from '../service/fixture-computer-use.js';
@@ -14,6 +15,7 @@ import { actFixtureElement } from '../backend/macos/act.js';
 import { NativeController } from '../backend/macos/controller.js';
 import { FixtureSession } from '../backend/macos/fixture-session.js';
 import { installScopeLifecycle } from './scope-lifecycle.js';
+import { ControlGate } from './control-gate.js';
 import { bindHostContext } from './context.js';
 
 const json = (value: unknown) => [{ type: 'text' as const, text: JSON.stringify(value) }];
@@ -25,20 +27,13 @@ const looseObject = { type: 'object' } as const;
  */
 export function registerFixtureTools(ctx: Context, repositoryRoot: string, options: { visible: boolean }): void {
   let state: { service: FixtureComputerUse; fixture: FixtureSession; ledger: string } | undefined;
-  let controller: Promise<NativeController> | undefined;
+  const gate = new ControlGate(() => NativeController.start(repositoryRoot));
   let disposed = false;
 
   const host = () => {
     const c = ctx as unknown as { agents?: unknown; sessions?: unknown; workingDirectory?: unknown; subprocess?: unknown };
     if (!c.agents || !c.sessions || !c.workingDirectory || !c.subprocess) throw new Error('HOST_CONTEXT_UNAVAILABLE: Computer use requires a live DSH agent host.');
     return ctx as Context;
-  };
-  const controllerFor = () => {
-    controller ??= NativeController.start(repositoryRoot).catch((error) => { controller = undefined; throw error; });
-    return controller.then((current) => {
-      if (current.status() === 'closed') { controller = undefined; throw new Error('CONTROL_STOPPED: The controller stopped.'); }
-      return current;
-    });
   };
   const requestApproval = async (exec: Pick<ToolRunContext, 'agent' | 'callId' | 'signal'>, summary: ApprovalSummary) => {
     const approval = (ctx as unknown as { approval?: Pick<ApprovalService, 'config' | 'overrideOf' | 'request'> }).approval;
@@ -60,7 +55,7 @@ export function registerFixtureTools(ctx: Context, repositoryRoot: string, optio
       fixtureTarget: (windowKey, signal) => fixture.target(windowKey, signal),
       observe: (target, signal) => observeFixtureSnapshot(current.subprocess, repositoryRoot, target, { signal }),
       act: (target, element, value, signal) => actFixtureElement(current.subprocess, repositoryRoot, target, element, value, { signal, timeoutMs: 5000 }),
-      beginControl: async () => (await controllerFor()).begin(),
+      beginControl: () => gate.begin(),
       requestApproval,
     }, { ledgerDirectory: ledger });
     state = { service, fixture, ledger };
@@ -115,8 +110,8 @@ export function registerFixtureTools(ctx: Context, repositoryRoot: string, optio
     output: { schema: looseObject, render: (_args, value) => json(value) },
     async execute(_args, exec) {
       exec.signal.throwIfAborted();
-      const current = controller ? await controller.catch(() => undefined) : undefined;
-      current?.revokeFromHost();
+      // Host-sticky: holds even if no controller process was ever started or the revoked one later dies.
+      await gate.stop();
       state?.service.policyChangedFromHost();
       return { status: 'revoked', drained: false, dispatchable: false };
     },
@@ -131,10 +126,13 @@ export function registerFixtureTools(ctx: Context, repositoryRoot: string, optio
       disposed = true;
       const current = state; state = undefined;
       current?.service.dispose();
-      void controller?.then((c) => c.close()).catch(() => {});
+      void gate.close();
       void current?.fixture.close();
-      if (current && resolve(current.ledger).startsWith('/private/var/') || current?.ledger.startsWith('/private/tmp/')) {
-        void rm(current!.ledger, { recursive: true }).catch(() => {});
+      if (current) {
+        const ledger = resolve(current.ledger);
+        if (ledger.startsWith(resolve(tmpdir(), 'cu-ledger-')) || ledger.startsWith(`${realpathSync(tmpdir())}/cu-ledger-`)) {
+          void rm(ledger, { recursive: true }).catch(() => {});
+        }
       }
     },
   };

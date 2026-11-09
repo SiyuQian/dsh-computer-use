@@ -1,6 +1,25 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface, type Interface } from 'node:readline';
 import { isAbsolute, join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { lstat, readFile } from 'node:fs/promises';
+
+const controllerSources = ['native/ControlLock.swift', 'native/ControlNamespace.swift', 'native/StopChannel.swift', 'native/StopDiscovery.swift', 'native/Controller/main.swift'];
+/** Local development consistency gate (same rule as the helper): source + binary must match the build manifest. Not signing. */
+async function verifyController(root: string): Promise<string> {
+  const invalid = () => new Error('ARTIFACT_INVALID: Rebuild the local controller (pnpm run build:stop). No controller was started.');
+  try {
+    const binary = join(root, 'dist/native/CUController');
+    const manifest = JSON.parse(await readFile(join(root, 'dist/native/controller-manifest.json'), 'utf8')) as Record<string, unknown>;
+    const info = await lstat(binary);
+    if (!info.isFile() || info.uid !== process.geteuid?.() || (info.mode & 0o022) !== 0 || info.nlink !== 1) throw invalid();
+    const sources = createHash('sha256');
+    for (const source of controllerSources) { sources.update(source); sources.update(await readFile(join(root, source))); }
+    if (manifest.distribution !== 'local-development-only' || manifest.sourceDigest !== sources.digest('hex') ||
+        manifest.binaryDigest !== createHash('sha256').update(await readFile(binary)).digest('hex')) throw invalid();
+    return binary;
+  } catch { throw invalid(); }
+}
 
 type Status = 'ready' | 'idle' | 'active' | 'revoked' | 'busy' | 'granted' | 'drained';
 function failure(code: string): Error { return new Error(`${code}: The per-user native controller did not grant control. No action was dispatched.`); }
@@ -19,18 +38,19 @@ export class NativeController {
   readonly #waiters: Array<(status: Status) => void> = [];
   #slot: AbortController | undefined;
   #closed = false;
+  #revoked = false;
 
   private constructor(child: ChildProcessWithoutNullStreams, lines: Interface) {
     this.#child = child; this.#lines = lines;
     lines.on('line', (line) => this.#receive(line));
-    child.once('exit', () => { this.#closed = true; this.#revoke(); for (const waiter of this.#waiters.splice(0)) waiter('drained'); });
+    child.once('exit', () => { this.#closed = true; this.#abortLive(); for (const waiter of this.#waiters.splice(0)) waiter('drained'); });
   }
 
   static async start(repositoryRoot: string, options: { testParent?: string } = {}): Promise<NativeController> {
     if (process.platform !== 'darwin' || !isAbsolute(repositoryRoot)) throw failure('UNSUPPORTED_PLATFORM');
     if (options.testParent !== undefined && !isAbsolute(options.testParent)) throw failure('INVALID_REQUEST');
     const argv = options.testParent === undefined ? ['--serve'] : ['--serve', '--test-parent', options.testParent];
-    const child = spawn(join(repositoryRoot, 'dist/native/CUController'), argv, { stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(await verifyController(repositoryRoot), argv, { stdio: ['pipe', 'pipe', 'pipe'] });
     child.stderr.resume();
     const lines = createInterface({ input: child.stdout });
     const first = await new Promise<string>((done, reject) => {
@@ -47,6 +67,8 @@ export class NativeController {
 
   /** Aborts once the controller is revoked (independent stop, host revoke, or controller exit). */
   get signal(): AbortSignal { return this.#abort.signal; }
+  /** True only for an explicit stop (independent or host), not for a plain process exit. */
+  get revoked(): boolean { return this.#revoked; }
   status(): 'idle' | 'active' | 'revoked' | 'closed' {
     if (this.#closed) return 'closed';
     if (this.#abort.signal.aborted) return 'revoked';
@@ -78,7 +100,7 @@ export class NativeController {
   }
 
   async close(): Promise<void> {
-    this.#revoke();
+    this.#abortLive();
     if (this.#closed) return;
     const exited = new Promise<void>((done) => this.#child.once('exit', () => done()));
     this.#child.stdin.end();
@@ -86,8 +108,16 @@ export class NativeController {
     await exited; clearTimeout(timer); this.#lines.close();
   }
 
+  /** Bounded: a wedged controller is treated as revoked rather than hanging the tool call. */
   #request(command: 'begin' | 'end'): Promise<Status> {
-    return new Promise<Status>((done) => { this.#waiters.push(done); this.#child.stdin.write(`${command}\n`); });
+    return new Promise<Status>((done) => {
+      const timer = setTimeout(() => {
+        const index = this.#waiters.indexOf(settle); if (index !== -1) this.#waiters.splice(index, 1);
+        this.revokeFromHost(); done('revoked');
+      }, 2000);
+      const settle = (status: Status) => { clearTimeout(timer); done(status); };
+      this.#waiters.push(settle); this.#child.stdin.write(`${command}\n`);
+    });
   }
 
   #receive(line: string): void {
@@ -99,7 +129,8 @@ export class NativeController {
     if (status && this.#waiters.length > 0) this.#waiters.shift()!(status);
   }
 
-  #revoke(): void {
+  #revoke(): void { this.#revoked = true; this.#abortLive(); }
+  #abortLive(): void {
     if (!this.#abort.signal.aborted) this.#abort.abort();
     this.#slot?.abort();
   }

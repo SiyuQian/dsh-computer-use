@@ -72,6 +72,10 @@ export class FixtureComputerUse implements ScopeLifecycle {
     const target = await this.backends.fixtureTarget(request.window, context.signal);
     const key = this.#grantKey(context, request.window);
     let grant = this.#grants.get(key);
+    if (grant && sameTarget(grant.target, target)) {
+      // The authority revokes on TTL; a cached id that no longer reads must be replaced, not reused forever.
+      try { this.#authority.requireRead(context, grant.grantId, target); } catch { this.#grants.delete(key); grant = undefined; }
+    }
     if (!grant || !sameTarget(grant.target, target)) {
       if (grant) this.#authority.revokeFromHost(grant.grantId);
       // Static owned-fixture policy: the plugin is configured to read only its own test fixture.
@@ -95,8 +99,8 @@ export class FixtureComputerUse implements ScopeLifecycle {
     let candidate;
     try { candidate = this.#observations.resolveFixtureFromHost(context, request.observationId, request.action.targetHandle, request.action.kind); }
     catch { return notExecuted('OBSERVATION_EXPIRED', 'validate', 'observe_first'); }
-    const grant = [...this.#grants.values()].find((entry) => sameTarget(entry.target, candidate.target));
-    try { if (!grant) throw new Error(); this.#authority.requireRead(context, grant.grantId, candidate.target); }
+    const grant = this.#grants.get(this.#grantKey(context, candidate.target.windowKey));
+    try { if (!grant || !sameTarget(grant.target, candidate.target)) throw new Error(); this.#authority.requireRead(context, grant.grantId, candidate.target); }
     catch { return notExecuted('READ_DENIED', 'authorize', 'observe_first'); }
     if (request.action.kind === 'set_value' && request.action.value.length > 1024) return notExecuted('INVALID_REQUEST', 'validate');
 

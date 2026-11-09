@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, realpath, rm } from 'node:fs/promises';
+import { copyFile, cp, mkdir, mkdtemp, realpath, rm, appendFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -65,5 +65,16 @@ describe('CU-010b2b2: per-user native controller gate and independent stop', () 
   it('rejects arbitrary argv on the controller binary', () => {
     const result = spawnSync(resolve('dist/native/CUController'), ['--script', 'x'], { encoding: 'utf8', timeout: 2000 });
     expect(result.status).toBe(2); expect(result.stdout).toBe('');
+  });
+
+  it('refuses to start a controller whose binary does not match its build manifest', async () => {
+    const copy = join(root, 'repo'); await mkdir(join(copy, 'dist/native'), { recursive: true });
+    for (const file of ['CUController', 'controller-manifest.json']) await copyFile(resolve('dist/native', file), join(copy, 'dist/native', file));
+    await cp(resolve('native'), join(copy, 'native'), { recursive: true }); await mkdir(join(copy, 'scripts'));
+    await copyFile(resolve('scripts/build-controller.mjs'), join(copy, 'scripts/build-controller.mjs'));
+    const path = await parent('artifact');
+    const ok = await NativeController.start(copy, { testParent: path }); await ok.close();
+    await appendFile(join(copy, 'dist/native/CUController'), 'tampered');
+    await expect(NativeController.start(copy, { testParent: path })).rejects.toThrow('ARTIFACT_INVALID');
   });
 });

@@ -47,7 +47,8 @@ do {
         try lock.requireOwnership()
         if channel.revoked && !announced { announced = true; emit(["status": "revoked", "active": active]) }
         var descriptor = pollfd(fd: STDIN_FILENO, events: Int16(POLLIN), revents: 0)
-        guard poll(&descriptor, 1, 5) >= 0 || errno == EINTR else { throw ControlNamespaceError.unavailable }
+        // 100 ms tick bounds stop latency while avoiding a 5 ms busy loop for the whole plugin lifetime.
+        guard poll(&descriptor, 1, 100) >= 0 || errno == EINTR else { throw ControlNamespaceError.unavailable }
         guard descriptor.revents & Int16(POLLIN | POLLHUP) != 0 else { continue }
         var bytes = [UInt8](repeating: 0, count: 64)
         let count = read(STDIN_FILENO, &bytes, bytes.count)
