@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { probeNativeHealth } from '../../src/backend/macos/health.js';
 
 const roots: string[] = [];
-const sources = ['native/ProcessIdentity.swift', 'native/Helper/FixtureTextPolicy.swift', 'native/Helper/FixtureElementPolicy.swift', 'native/Helper/FixtureElementScan.swift', 'native/Helper/FixtureObservation.swift', 'native/Helper/FixtureRevalidation.swift', 'native/Helper/main.swift', 'scripts/build-helper.mjs'];
+const sources = ['native/ProcessIdentity.swift', 'native/Helper/FixtureTextPolicy.swift', 'native/Helper/FixtureElementPolicy.swift', 'native/Helper/FixtureElementScan.swift', 'native/Helper/FixtureObservation.swift', 'native/Helper/FixtureRevalidation.swift', 'native/Helper/FixtureAction.swift', 'native/Helper/main.swift', 'scripts/build-helper.mjs'];
 const manifestPath = 'dist/native/helper-manifest.json'; const binaryPath = 'dist/native/CUHelper';
 afterEach(async () => {
   for (const root of roots.splice(0)) {
@@ -41,11 +41,11 @@ describe('CU-024a: fixed local helper integrity admission, not code-signing auth
     const f = await fixture(); await appendFile(join(f.root, sources[0]!), '\n// public test source change\n'); await denied(f.root);
   });
 
-  it('admits the actual freshly built helper and reports read-only health through the real managed provider', async () => {
+  it('admits the actual freshly built helper and reports fixture-only health through the real managed provider', async () => {
     const ctx = new Context(); await ctx.plugin(LocalSubprocessRuntime).inertia;
     try {
       const result = await probeNativeHealth(ctx.subprocess, resolve('.'), { signal: AbortSignal.timeout(5000) });
-      expect(result.status).toBe('ok'); expect(result.capabilities).toEqual({ axObservation: false, mutation: false, keyboard: false, pointer: false });
+      expect(result.status).toBe('ok'); expect(result.capabilities).toEqual({ axObservation: false, mutation: 'fixture_semantic_only', keyboard: false, pointer: false });
     } finally { await ctx.fiber.dispose(); }
   });
 

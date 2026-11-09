@@ -99,7 +99,7 @@ describe('CU-004: owned AppKit fixture', () => {
         pid: ready.pid, processStart: ready.processStart, ...primaryWindow,
       }, { signal: new AbortController().signal });
       expect(changed.status === 'error' && changed.code).toBe('TARGET_CHANGED');
-      expect(health.capabilities.mutation).toBe(false);
+      expect(health.capabilities.mutation).toBe('fixture_semantic_only');
     } finally {
       processHandle.terminate();
       await processHandle.waitForExit(AbortSignal.timeout(2000));

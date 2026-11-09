@@ -15,8 +15,8 @@ if (fault === 'hang' || fault === 'hang_ready') {
   const request = JSON.parse(raw);
   let response = {
     protocolVersion: 1, requestId: request.requestId, launchId: request.launchId,
-    status: 'ok', commands: ['health', 'observe_fixture', 'revalidate_fixture'], helperPid: process.pid,
-    capabilities: { axObservation: false, mutation: false, keyboard: false, pointer: false },
+    status: 'ok', commands: ['health', 'observe_fixture', 'revalidate_fixture', 'act_fixture'], helperPid: process.pid,
+    capabilities: { axObservation: false, mutation: 'fixture_semantic_only', keyboard: false, pointer: false },
     permissions: { accessibility: false, screenCapture: false },
   };
   if (fault.startsWith('revalidate_')) {

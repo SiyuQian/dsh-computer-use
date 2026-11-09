@@ -30,7 +30,7 @@ Last reviewed: 2026-11-09（Pacific/Auckland）。按已运行证据描述，不
 | native transport | health与fixture读取拒绝verified | [transport tests](<../tests/transport/>) | 无成功UI读取验收，不是输入安全证明 |
 | 保守阶段回执/固定评估接线 | kernel单调事实及private固定policy→not_executed终态、scope先封存/迟到首terminal、typed拒绝已验 | [回执设计](<design-docs/action-receipts.md>) | 不认证native/观察来源/ledger或效果，无ACK/dispatchruntime入口，CU-013b未完成 |
 | 内存artifact暂存/内部生命周期 | 默认关闭、逐次独立policy+live观察target/read grant、字节预算/TTL、真实Session事件清理与abort前owned清零已验 | [暂存设计](<design-docs/ephemeral-artifacts.md>) | 无capture/PNG认证/磁盘/公开route/生产入口consent，非可信evidence，CU-014b未完成 |
-| 原生动作与真实 app | 未实现/未运行 | helper无输入command，capability全false | CU-012/020 |
+| 原生动作与真实 app | fixture语义动作helper+API边界桩verified；native lane NOT_RUN | [action adapter](<../tests/fixture/action-adapter.test.ts>)、[transport](<../tests/transport/action.test.ts>) | 缺AX未实跑；未接host授权组合/模型；真实app未授权，CU-012a2/015/020 |
 | 隐私 | 私人数据 no-go | [SDK 日志调查](<design-docs/sdk-compatibility.md>) | host 会记录收到的原始参数，strict schema 不能补救 |
 | UI/模型 | 未实现/未运行 | 没有演示或成功率声明 | CU-016/026 |
 

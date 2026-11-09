@@ -57,6 +57,13 @@ private func revalidationChildren(_ element: AXUIElement, limit: Int) -> Fixture
 /// Read-only exact fixture probe. It never reads text values or mutates AX state, and its result is not an execution permit.
 func revalidateFixture(pid: Int32, start: String, windowKey: String, windowId: Int, windowInstance: String,
                        identifier: String, instance: String, operation: String) throws {
+    _ = try locateExactFixtureElement(pid: pid, start: start, windowKey: windowKey, windowId: windowId, windowInstance: windowInstance,
+                                      identifier: identifier, instance: instance, operation: operation)
+}
+
+/// Bounded exact lookup shared by read-only revalidation and the single fixture action. Never reads text values.
+func locateExactFixtureElement(pid: Int32, start: String, windowKey: String, windowId: Int, windowInstance: String,
+                               identifier: String, instance: String, operation: String) throws -> (window: AXUIElement, element: AXUIElement) {
     guard exactFixtureIdentity(pid: pid, start: start) else { throw FixtureReadFailure(code: "TARGET_CHANGED") }
     guard AXIsProcessTrusted() else { throw FixtureReadFailure(code: "READ_DENIED") }
     let app = AXUIElementCreateApplication(pid)
@@ -91,8 +98,21 @@ func revalidateFixture(pid: Int32, start: String, windowKey: String, windowId: I
             return CFEqual(actualWindow, window)
         })
     let selected = scanFixtureElement(root: window, identifier: identifier, instance: instance, operation: operation, adapter: adapter)
-    guard selected.decision == .exact else { throw FixtureReadFailure(code: selected.decision.rawValue) }
+    guard selected.decision == .exact, let element = selected.element else { throw FixtureReadFailure(code: selected.decision.rawValue) }
     guard exactFixtureIdentity(pid: pid, start: start), revalidationAttribute(window, kAXIdentifierAttribute) as? String == witness else {
         throw FixtureReadFailure(code: "TARGET_CHANGED")
     }
+    return (window, element)
 }
+
+/// Final identity witness immediately before dispatch. Does not read values.
+func fixtureWindowStillExact(pid: Int32, start: String, window: AXUIElement, witness: String) -> Bool {
+    exactFixtureIdentity(pid: pid, start: start) && revalidationAttribute(window, kAXIdentifierAttribute) as? String == witness
+}
+
+func fixtureElementStillExact(_ element: AXUIElement, identifier: String, instance: String, operation: String) -> Bool {
+    guard let metadata = revalidationMetadata(element), metadata.identifier == identifier, metadata.instance == instance else { return false }
+    return decideFixtureElement(nodes: [metadata], complete: true, identifier: identifier, instance: instance, operation: operation) == .exact
+}
+
+func fixtureStringValue(_ element: AXUIElement) -> String? { revalidationAttribute(element, kAXValueAttribute) as? String }

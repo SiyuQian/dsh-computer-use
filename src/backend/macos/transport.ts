@@ -2,24 +2,26 @@ import { isAbsolute } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { verifyLocalHelper } from './helper-artifact.js';
 import type { SubprocessHandle, SubprocessRuntime } from '@deepseek-ai/dsh-subprocess';
-import { nativeReadRequestSchema, type NativeReadRequest } from '../../contracts/fixture-observation.js';
+import { nativeRequestSchema, type NativeRequest } from '../../contracts/fixture-observation.js';
 import { parseContract } from '../../contracts/shared.js';
 
-type Failure = 'CANCELLED' | 'NATIVE_TIMEOUT' | 'NATIVE_PROTOCOL_ERROR' | 'NATIVE_TRANSPORT_ERROR' | 'NATIVE_CLEANUP_FAILED' | 'ARTIFACT_INVALID';
+type Failure = 'CANCELLED' | 'NATIVE_TIMEOUT' | 'NATIVE_PROTOCOL_ERROR' | 'NATIVE_TRANSPORT_ERROR' | 'NATIVE_CLEANUP_FAILED' | 'ARTIFACT_INVALID' | 'EXECUTION_UNKNOWN';
 class NativeTransportError extends Error {
-  constructor(code: Failure) {
-    super(`${code}: Native read probe did not complete. No action was retried.`);
+  constructor(readonly code: Failure) {
+    super(code === 'EXECUTION_UNKNOWN'
+      ? 'EXECUTION_UNKNOWN: The fixture action may have been dispatched. Its effect is unknown and it was not retried. Observe again first.'
+      : `${code}: Native request did not complete. No action was retried.`);
   }
 }
 function failure(code: Failure): NativeTransportError {
   return new NativeTransportError(code);
 }
 
-/** Run one closed read request against the fixed app-owned helper. Not a model tool. */
+/** Run one closed request against the fixed app-owned helper. Not a model tool. Mutation failures after spawn are EXECUTION_UNKNOWN. */
 export async function runNativeRead<T extends { requestId: string; launchId: string }>(
   provider: Pick<SubprocessRuntime, 'spawn'>,
   repositoryRoot: string,
-  request: NativeReadRequest,
+  request: NativeRequest,
   parseResponse: (raw: unknown) => T,
   options: { signal: AbortSignal; timeoutMs?: number },
 ): Promise<T> {
@@ -29,7 +31,8 @@ export async function runNativeRead<T extends { requestId: string; launchId: str
   if (!isAbsolute(repositoryRoot) || !Number.isInteger(timeoutMs) || timeoutMs < 50 || timeoutMs > 10_000) {
     throw new Error('INVALID_REQUEST: Native health requires a fixed root and a bounded timeout.');
   }
-  request = parseContract(nativeReadRequestSchema, request);
+  request = parseContract(nativeRequestSchema, request);
+  const mutation = request.command === 'act_fixture';
   const maxFrameBytes = request.command === 'health' ? 8192 : 262_144;
   const lifecycle = new AbortController();
   let resolveHalted: (value: undefined) => void = () => {};
@@ -68,7 +71,7 @@ export async function runNativeRead<T extends { requestId: string; launchId: str
     handle = provider.spawn({
       argv: [executable, '--managed-stdio'],
       cwd: repositoryRoot,
-      stdio: { stdin: { data: `${JSON.stringify(request, request.command === 'revalidate_fixture' ? (_key, value: unknown) =>
+      stdio: { stdin: { data: `${JSON.stringify(request, request.command === 'revalidate_fixture' || request.command === 'act_fixture' ? (_key, value: unknown) =>
         value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).sort(([first], [second]) => first < second ? -1 : first > second ? 1 : 0)) : value : undefined)}\n` }, stdout: 'pipe', stderr: { maxBytes: 256 }, control: 'pipe' },
       graceMs: 100,
       signal: lifecycle.signal,
@@ -95,6 +98,8 @@ export async function runNativeRead<T extends { requestId: string; launchId: str
     requireCurrent();
     return response;
   } catch (error) {
+    // Once a mutation request reached a spawned helper, every failure is a possible dispatch: never "not executed".
+    if (mutation && handle && !(error instanceof NativeTransportError && error.code === 'ARTIFACT_INVALID')) throw failure('EXECUTION_UNKNOWN');
     if (stopped) throw failure(stopped);
     if (error instanceof NativeTransportError) throw error;
     throw failure('NATIVE_TRANSPORT_ERROR');
@@ -117,7 +122,7 @@ export async function runNativeRead<T extends { requestId: string; launchId: str
         handle.stdout?.off('error', streamError);
         handle.control?.off('error', streamError);
       }
-      if (!exited) throw failure('NATIVE_CLEANUP_FAILED');
+      if (!exited) throw failure(mutation ? 'EXECUTION_UNKNOWN' : 'NATIVE_CLEANUP_FAILED');
     }
   }
 }

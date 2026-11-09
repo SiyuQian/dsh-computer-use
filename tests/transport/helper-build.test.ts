@@ -14,7 +14,7 @@ afterEach(async () => {
 it.each(['source', 'recipe'])('does not publish a manifest when %s changes while the compiler runs', async (fault) => {
   const root = await realpath(await mkdtemp('/tmp/cu-helper-build-')); roots.push(root);
   const sources = ['native/ProcessIdentity.swift', 'native/Helper/FixtureTextPolicy.swift', 'native/Helper/FixtureElementPolicy.swift',
-    'native/Helper/FixtureElementScan.swift', 'native/Helper/FixtureObservation.swift', 'native/Helper/FixtureRevalidation.swift', 'native/Helper/main.swift', 'scripts/build-helper.mjs'];
+    'native/Helper/FixtureElementScan.swift', 'native/Helper/FixtureObservation.swift', 'native/Helper/FixtureRevalidation.swift', 'native/Helper/FixtureAction.swift', 'native/Helper/main.swift', 'scripts/build-helper.mjs'];
   for (const source of sources) { await mkdir(dirname(join(root, source)), { recursive: true }); await copyFile(resolve(source), join(root, source)); }
   const tools = join(root, 'test-bin'); await mkdir(tools);
   const compiler = join(tools, 'swiftc');

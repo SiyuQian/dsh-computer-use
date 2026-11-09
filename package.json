@@ -50,6 +50,7 @@
     "build:stop": "node scripts/build-stop.mjs",
     "test:transport": "vitest run tests/transport",
     "test:native-observation": "node scripts/test-native-observation.mjs",
+    "test:native-action": "node scripts/test-native-action.mjs",
     "verify:foundation": "node scripts/verify-foundation.mjs"
   },
   "dependencies": {

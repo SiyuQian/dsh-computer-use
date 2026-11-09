@@ -7,10 +7,10 @@ import { z } from 'zod';
 const sourcePaths = [
   'native/ProcessIdentity.swift', 'native/Helper/FixtureTextPolicy.swift', 'native/Helper/FixtureElementPolicy.swift',
   'native/Helper/FixtureElementScan.swift', 'native/Helper/FixtureObservation.swift', 'native/Helper/FixtureRevalidation.swift',
-  'native/Helper/main.swift', 'scripts/build-helper.mjs',
+  'native/Helper/FixtureAction.swift', 'native/Helper/main.swift', 'scripts/build-helper.mjs',
 ];
 const manifestSchema = z.strictObject({
-  protocolVersion: z.literal(1), commands: z.tuple([z.literal('health'), z.literal('observe_fixture'), z.literal('revalidate_fixture')]),
+  protocolVersion: z.literal(1), commands: z.tuple([z.literal('health'), z.literal('observe_fixture'), z.literal('revalidate_fixture'), z.literal('act_fixture')]),
   architecture: z.enum(['arm64', 'x86_64']), deploymentTarget: z.literal('14.0'),
   sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), binaryDigest: z.string().regex(/^[a-f0-9]{64}$/),
   distribution: z.literal('local-development-only'),

@@ -69,7 +69,31 @@ export type FixtureRevalidateResponse = z.infer<typeof fixtureRevalidateResponse
 export function parseFixtureRevalidateResponse(value: unknown): FixtureRevalidateResponse {
   return parseContract(fixtureRevalidateResponseSchema, value);
 }
+/** Single owned-fixture semantic action. Value is public test data, bounded, and never echoed back. */
+export const fixtureActRequestSchema = z.strictObject({
+  protocolVersion: z.literal(1), requestId: opaqueId, launchId: opaqueId,
+  command: z.literal('act_fixture'), target: fixtureTargetSchema, element: fixtureElementSchema,
+  value: z.string().max(1024).optional(),
+}).refine((request) => (request.element.operation === 'press') === (request.value === undefined))
+  .refine((request) => (request.element.operation === 'set_value') === (request.element.identifier === 'fixture.text'));
+export const fixtureActResponseSchema = z.discriminatedUnion('status', [
+  z.strictObject({
+    protocolVersion: z.literal(1), requestId: opaqueId, launchId: opaqueId, status: z.literal('dispatched'),
+    execution: z.enum(['completed', 'unknown']), readback: z.enum(['match', 'mismatch', 'unavailable', 'not_applicable']),
+  }),
+  z.strictObject({
+    protocolVersion: z.literal(1), requestId: opaqueId, launchId: opaqueId, status: z.literal('error'),
+    code: z.enum(['READ_DENIED', 'TARGET_CHANGED', 'TARGET_AMBIGUOUS', 'CAPABILITY_UNAVAILABLE']),
+  }),
+]);
+export type FixtureActRequest = z.infer<typeof fixtureActRequestSchema>;
+export type FixtureActResponse = z.infer<typeof fixtureActResponseSchema>;
+export function parseFixtureActResponse(value: unknown): FixtureActResponse {
+  return parseContract(fixtureActResponseSchema, value);
+}
 export const nativeReadRequestSchema = z.discriminatedUnion('command', [nativeHealthRequestSchema, fixtureObserveRequestSchema, fixtureRevalidateRequestSchema]);
+export const nativeRequestSchema = z.union([nativeReadRequestSchema, fixtureActRequestSchema]);
+export type NativeRequest = z.infer<typeof nativeRequestSchema>;
 export type NativeReadRequest = z.infer<typeof nativeReadRequestSchema>;
 
 export const fixtureObserveResponseSchema = z.discriminatedUnion('status', [
